@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/server";
 import UserDataSection from "@/components/UserDataSection";
+import AccountStatusActions from "@/components/AccountStatusActions";
 
 type Row = Record<string, unknown>;
 type Profile = Row & { id: string; display_name?: string | null; binzeo_user_id?: string | null; username?: string | null; account_status?: string | null; profile_photo_url?: string | null };
@@ -47,6 +48,7 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
 
   return <div className="content"><p><Link className="muted" href="/dashboard/users">← Back to active users</Link></p>
     <section className="user-hero"><div className="user-identity">{user.profile_photo_url ? <img className="user-hero-avatar" src={user.profile_photo_url} alt="" /> : <span className="user-hero-avatar user-hero-fallback">{title.slice(0, 1).toUpperCase()}</span>}<div><p className="eyebrow">Complete user account</p><h2>{title}</h2><p className="muted">{user.binzeo_user_id || "No BINZEO ID"} · @{user.username || "no-username"}</p></div></div><div className="user-hero-status"><span className={`badge ${user.account_status === "active" ? "good" : "warn"}`}>{user.account_status || "unknown"}</span><p className="muted">{rows.reduce((sum, items) => sum + items.length, 0)} linked records</p></div></section>
+    <AccountStatusActions userId={user.id} status={user.account_status} />
     <p className="protected-note" style={{ margin: "18px 0" }}><strong>Security note:</strong> raw passwords, OTP/code hashes, passkey keys and temporary token hashes are intentionally excluded. Their lifecycle, status, timestamps and audit metadata are shown where available.</p>
     <UserDataSection title="Profile / all fields" description="The complete profile record, including preferences, consent and account lifecycle fields." columns={profileFields} rows={[profileRow]} />
     {datasets.map(([sectionTitle, , columns], index) => <UserDataSection key={sectionTitle} title={sectionTitle} description={sectionTitle.includes("lifecycle") || sectionTitle.includes("limits") ? "Security lifecycle metadata and timestamps. Secret values are excluded." : undefined} columns={[...columns]} rows={rows[index]} />)}

@@ -42,6 +42,7 @@ export const DATA_TABLES: TableDefinition[] = [
   { slug: "login-limit-exceeded", table: "login_limit_exceeded", title: "Exceeded login limits", description: "Blocked login attempt summaries.", columns: ["id", "account_email", "user_id", "account_key", "request_ip", "window_date", "account_attempts", "ip_attempts", "daily_limit", "blocked_count", "first_blocked_at", "last_blocked_at", "created_at", "updated_at"], sensitive: true },
   { slug: "profile-images", table: "profile_images", title: "Profile images", description: "Current profile image references.", columns: ["user_id", "profile_id", "image_url", "image_public_id", "created_at", "updated_at"] },
   { slug: "profile-deleted-images", table: "profile_deleted_images", title: "Deleted profile images", description: "Deleted profile image audit records.", columns: ["id", "user_id", "profile_id", "image_url", "image_public_id", "deletion_reason", "deleted_at"] },
+  { slug: "deleted-user-emails", table: "deleted_user_emails", title: "Deleted user emails", description: "Limited identity archive retained after permanent account deletion.", columns: ["id", "original_user_id", "email", "binzeo_user_id", "display_name", "deleted_at", "deleted_by", "deletion_reason", "metadata"], sensitive: true },
 ];
 
 export function getTableDefinition(slug: string) {
