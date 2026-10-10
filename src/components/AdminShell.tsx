@@ -7,6 +7,7 @@ const links = [
   ["Active users", "/dashboard/users"],
   ["Suspended users", "/dashboard/suspended"],
   ["Deleted emails", "/dashboard/deleted-emails"],
+  ["Marketing emails", "/dashboard/marketing"],
   ["Profiles", "/dashboard/profiles"],
   ["Contacts", "/dashboard/user-contacts"],
   ["Addresses", "/dashboard/user-addresses"],

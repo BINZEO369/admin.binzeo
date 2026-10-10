@@ -112,6 +112,11 @@ button, input { font: inherit; }
 .user-hero-status { text-align: right; }
 .user-hero-status p { font-size: 11px; margin: 9px 0 0; }
 .user-dossier-section { margin-top: 18px; }
+.marketing-grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-top: 18px; }
+.field-label { color: var(--ink); display: grid; font-size: 12px; font-weight: 800; gap: 7px; margin-top: 14px; }
+.two-col { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+.email-preview { background: #111; border: 1px solid var(--line); border-radius: 12px; height: 620px; margin-top: 14px; width: 100%; }
+.preview-empty { align-items: center; border: 1px dashed var(--line); border-radius: 12px; display: flex; height: 620px; justify-content: center; margin-top: 14px; }
 
 @media (max-width: 1050px) {
   .side { width: 224px; flex-basis: 224px; }
@@ -142,6 +147,7 @@ button, input { font: inherit; }
   .explorer-block { padding: 14px; }
   .user-hero { align-items: flex-start; flex-direction: column; padding: 18px; }
   .user-hero-status { text-align: left; }
+  .marketing-grid, .two-col { grid-template-columns: 1fr; }
   .table th, .table td { padding: 11px 12px; }
   .login-card { padding: 26px 22px; }
 }

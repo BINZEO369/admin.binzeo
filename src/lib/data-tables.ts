@@ -43,6 +43,8 @@ export const DATA_TABLES: TableDefinition[] = [
   { slug: "profile-images", table: "profile_images", title: "Profile images", description: "Current profile image references.", columns: ["user_id", "profile_id", "image_url", "image_public_id", "created_at", "updated_at"] },
   { slug: "profile-deleted-images", table: "profile_deleted_images", title: "Deleted profile images", description: "Deleted profile image audit records.", columns: ["id", "user_id", "profile_id", "image_url", "image_public_id", "deletion_reason", "deleted_at"] },
   { slug: "deleted-user-emails", table: "deleted_user_emails", title: "Deleted user emails", description: "Limited identity archive retained after permanent account deletion.", columns: ["id", "original_user_id", "email", "binzeo_user_id", "display_name", "deleted_at", "deleted_by", "deletion_reason", "metadata"], sensitive: true },
+  { slug: "marketing-email-campaigns", table: "marketing_email_campaigns", title: "Marketing email campaigns", description: "Admin-authored marketing campaigns and send totals.", columns: ["id", "subject", "preview_text", "created_by", "status", "recipient_count", "sent_count", "failed_count", "skipped_count", "created_at", "started_at", "completed_at"], sensitive: true },
+  { slug: "marketing-email-deliveries", table: "marketing_email_deliveries", title: "Marketing email deliveries", description: "Per-recipient delivery status and consent snapshot.", columns: ["id", "campaign_id", "user_id", "email", "consent_snapshot", "status", "provider_message_id", "error_message", "sent_at", "created_at"], sensitive: true },
 ];
 
 export function getTableDefinition(slug: string) {
