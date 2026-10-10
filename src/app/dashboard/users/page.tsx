@@ -1,4 +1,10 @@
-import Link from "next/link";
 import { requireAdmin } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/server";
-export default async function UsersPage(){await requireAdmin();const db=await createClient();const {data, error}=await db.from("profiles").select("id,binzeo_user_id,display_name,username,account_status,country_code,created_at").order("created_at",{ascending:false}).limit(100);return <div className="content"><div className="section-head"><div><p className="eyebrow">Directory</p><h2>Users</h2><p className="muted">Search-ready user directory with account status visibility.</p></div></div>{error?<p className="error">{error.message}</p>:<div className="table-wrap"><table className="table"><thead><tr><th>BINZEO ID</th><th>Name</th><th>Username</th><th>Status</th><th>Country</th><th>Created</th></tr></thead><tbody>{(data??[]).map(u=><tr key={u.id}><td><Link href={`/dashboard/users/${u.id}`}><strong>{u.binzeo_user_id}</strong></Link></td><td>{u.display_name??"—"}</td><td>{u.username??"—"}</td><td><span className={`badge ${u.account_status === "active" ? "good" : "warn"}`}>{u.account_status}</span></td><td>{u.country_code??"—"}</td><td>{new Date(u.created_at).toLocaleDateString()}</td></tr>)}</tbody></table></div>}</div>}
+import ActiveUsers from "@/components/ActiveUsers";
+
+export default async function UsersPage() {
+  await requireAdmin();
+  const db = await createClient();
+  const { data, error } = await db.from("profiles").select("id,binzeo_user_id,display_name,username,profile_photo_url,country_code,preferred_language,created_at").eq("account_status", "active").order("created_at", { ascending: false }).limit(500);
+  return <div className="content"><div className="section-head"><div><p className="eyebrow">Directory / profiles</p><h2>Active users</h2><p className="muted">Browse active user profiles as account cards and open each account for full details.</p></div><span className="badge good">Live directory</span></div>{error ? <p className="error">{error.message}</p> : <section className="explorer-block"><ActiveUsers users={data ?? []} /></section>}</div>;
+}

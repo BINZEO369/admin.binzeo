@@ -4,6 +4,7 @@ import LogoutButton from "@/components/LogoutButton";
 
 const links = [
   ["Overview", "/dashboard"],
+  ["Active users", "/dashboard/users"],
   ["Profiles", "/dashboard/profiles"],
   ["Contacts", "/dashboard/user-contacts"],
   ["Addresses", "/dashboard/user-addresses"],
