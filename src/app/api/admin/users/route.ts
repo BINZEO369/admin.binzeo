@@ -1,0 +1,3 @@
+import { getAdminApiContext } from "@/lib/admin";
+import { ok, fail } from "@/lib/api/response";
+export async function GET(req:Request){const {supabase,user,access}=await getAdminApiContext();if(!user||!access)return fail("Forbidden",403,"ADMIN_REQUIRED");const url=new URL(req.url);const q=url.searchParams.get("q")||"";let query=supabase.from("profiles").select("id,binzeo_user_id,display_name,username,account_status,country_code,created_at").order("created_at",{ascending:false}).limit(100);if(q)query=query.or(`binzeo_user_id.ilike.%${q}%,display_name.ilike.%${q}%,username.ilike.%${q}%`);const {data,error}=await query;if(error)return fail(error.message,400,"USERS_FETCH_FAILED");return ok({users:data??[]});}

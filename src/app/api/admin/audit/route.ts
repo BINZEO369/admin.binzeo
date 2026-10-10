@@ -1,0 +1,3 @@
+import { getAdminApiContext } from "@/lib/admin";
+import { ok, fail } from "@/lib/api/response";
+export async function GET(){const {supabase,user,access}=await getAdminApiContext();if(!user||!access)return fail("Forbidden",403,"ADMIN_REQUIRED");if(!access.roles?.includes("super_admin")&&!access.permissions?.includes("audit.read"))return fail("Missing audit.read permission",403,"PERMISSION_DENIED");const {data,error}=await supabase.from("admin_activity_logs").select("id,admin_user_id,action_type,target_type,target_id,description,ip_address,metadata,created_at").order("created_at",{ascending:false}).limit(100);if(error)return fail(error.message,400,"AUDIT_FETCH_FAILED");return ok({logs:data??[]});}
