@@ -103,6 +103,15 @@ button, input { font: inherit; }
 .account-meta { border-top: 1px solid var(--line); color: var(--muted); display: flex; font-size: 10px; gap: 8px; justify-content: space-between; margin-top: 13px; padding-top: 10px; }
 .account-meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-card-link { color: var(--ink); font-weight: 800; }
+.user-hero { align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); display: flex; gap: 20px; justify-content: space-between; margin: 18px 0; padding: 24px; }
+.user-identity { align-items: center; display: flex; gap: 16px; min-width: 0; }
+.user-identity h2 { font-size: clamp(24px, 4vw, 36px); letter-spacing: -.06em; margin: 5px 0; overflow-wrap: anywhere; }
+.user-identity p { margin: 0; }
+.user-hero-avatar { background: var(--black); border-radius: 16px; color: white; flex: 0 0 78px; height: 78px; object-fit: cover; width: 78px; }
+.user-hero-fallback { align-items: center; display: grid; font-size: 28px; font-weight: 800; place-items: center; }
+.user-hero-status { text-align: right; }
+.user-hero-status p { font-size: 11px; margin: 9px 0 0; }
+.user-dossier-section { margin-top: 18px; }
 
 @media (max-width: 1050px) {
   .side { width: 224px; flex-basis: 224px; }
@@ -131,6 +140,8 @@ button, input { font: inherit; }
   .explorer-tools { justify-content: space-between; width: 100%; }
   .explorer-search { width: 58%; }
   .explorer-block { padding: 14px; }
+  .user-hero { align-items: flex-start; flex-direction: column; padding: 18px; }
+  .user-hero-status { text-align: left; }
   .table th, .table td { padding: 11px 12px; }
   .login-card { padding: 26px 22px; }
 }
