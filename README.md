@@ -22,8 +22,8 @@ Admin access is determined by the authenticated Supabase user and the `public.ad
 - `/dashboard` — operational overview
 - `/dashboard/users` — user directory
 - `/dashboard/users/:id` — user record
-- `/dashboard/data` — table directory with row counts
-- `/dashboard/data/:table` — one dedicated page per database table
+- `/dashboard` — overview plus direct links to every database table
+- `/dashboard/:table` — one dedicated page per database table
 - `/dashboard/security` — login history
 - `/dashboard/audit` — privileged action audit log
 - `/dashboard/settings` — sectors and countries reference data
