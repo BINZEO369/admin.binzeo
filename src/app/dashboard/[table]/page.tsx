@@ -6,19 +6,69 @@ import { getTableDefinition } from "@/lib/data-tables";
 import DataTable from "@/components/DataTable";
 
 type Row = Record<string, unknown>;
+const PAGE_SIZE = 100;
 
-export default async function DataTablePage({ params }: { params: Promise<{ table: string }> }) {
+type SearchParams = { page?: string };
+
+export default async function DataTablePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ table: string }>;
+  searchParams: Promise<SearchParams>;
+}) {
   await requireAdmin();
   const { table: slug } = await params;
   const definition = getTableDefinition(slug);
   if (!definition) notFound();
-  let rows: Row[] = [];
-  let errorMessage = "";
-  if (!definition.sensitive) {
-    const db = await createClient();
-    const result = await db.from(definition.table).select(definition.columns.join(", ")).limit(200);
-    rows = (result.data ?? []) as unknown as Row[];
-    errorMessage = result.error?.message ?? "";
-  }
-  return <div className="content"><p><Link className="muted" href="/dashboard">← Back to dashboard</Link></p><div className="section-head"><div><p className="eyebrow">Dashboard table</p><h2>{definition.title}</h2><p className="muted">{definition.description}</p></div>{definition.sensitive ? <span className="badge warn">Protected</span> : <span className="badge good">{rows.length} loaded</span>}</div>{errorMessage && <p className="error">{errorMessage}</p>}{definition.sensitive ? <DataTable title={definition.title} description="This table contains private challenge material." columns={[]} rows={[]} sensitive /> : <DataTable title={definition.title} description="Search within the first 200 records returned for this table." columns={definition.columns} rows={rows} />}</div>;
+
+  const requestedPage = Number.parseInt((await searchParams).page ?? "1", 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+  const db = await createClient();
+  const result = await db
+    .from(definition.table)
+    .select(definition.columns.join(", "), { count: "exact" })
+    .range(from, to);
+  const rows = (result.data ?? []) as unknown as Row[];
+  const totalCount = result.count ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const errorMessage = result.error?.message ?? "";
+
+  return (
+    <div className="content">
+      <p><Link className="muted" href="/dashboard">← Back to dashboard</Link></p>
+      <div className="section-head">
+        <div>
+          <p className="eyebrow">Dashboard table</p>
+          <h2>{definition.title}</h2>
+          <p className="muted">{definition.description}</p>
+        </div>
+        <span className={`badge ${definition.sensitive ? "warn" : "good"}`}>
+          {totalCount} total records
+        </span>
+      </div>
+      {errorMessage && <p className="error">{errorMessage}</p>}
+      <DataTable
+        title={definition.title}
+        description={`Showing records ${totalCount === 0 ? 0 : from + 1}–${Math.min(to + 1, totalCount)} of ${totalCount}. Search filters the loaded page.`}
+        columns={definition.columns}
+        rows={rows}
+        sensitive={definition.sensitive}
+        page={page}
+        pageCount={pageCount}
+        totalCount={totalCount}
+      />
+      {pageCount > 1 && (
+        <nav className="section-head" aria-label="Table pagination" style={{ marginTop: 18 }}>
+          <span className="muted">Page {page} of {pageCount}</span>
+          <div className="explorer-tools">
+            {page > 1 ? <Link className="button secondary" href={`/dashboard/${definition.slug}?page=${page - 1}`}>← Previous</Link> : <span />}
+            {page < pageCount ? <Link className="button" href={`/dashboard/${definition.slug}?page=${page + 1}`}>Next →</Link> : <span />}
+          </div>
+        </nav>
+      )}
+    </div>
+  );
 }
