@@ -118,6 +118,9 @@ button, input { font: inherit; }
 .email-preview { background: #111; border: 1px solid var(--line); border-radius: 12px; height: 620px; margin-top: 14px; width: 100%; }
 .email-preview-render { background: #111; border: 1px solid var(--line); border-radius: 12px; margin-top: 14px; max-height: 700px; min-height: 620px; overflow: auto; }
 .email-preview-render img { display: block; max-width: 100%; height: auto; }
+.team-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; }
+.team-option { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 12px; }
+.image-slot { display: grid; gap: 8px; margin: 10px 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .preview-empty { align-items: center; border: 1px dashed var(--line); border-radius: 12px; display: flex; height: 620px; justify-content: center; margin-top: 14px; }
 
 @media (max-width: 1050px) {
