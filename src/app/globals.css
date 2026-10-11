@@ -120,6 +120,8 @@ button, input { font: inherit; }
 .email-preview-render img { display: block; max-width: 100%; height: auto; }
 .team-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; }
 .team-option { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 12px; }
+.recipient-picker { display: grid; gap: 8px; max-height: 280px; margin-top: 8px; overflow-y: auto; padding-right: 3px; }
+.recipient-picker .team-option { align-items: flex-start; }
 .image-slot { display: grid; gap: 8px; margin: 10px 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .preview-empty { align-items: center; border: 1px dashed var(--line); border-radius: 12px; display: flex; height: 620px; justify-content: center; margin-top: 14px; }
 
