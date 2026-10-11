@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type BirthdayUser = { id: string; binzeo_user_id: string; display_name: string | null; first_name: string | null; last_name: string | null; profile_photo_url: string | null; email: string | null; birth_date: string | null; age: number | null; is_today: boolean; birthday_delivery: { birthday_year: number; status: string; sent_at: string | null; error_message: string | null } | null };
@@ -45,12 +46,12 @@ export default function BirthdaysPage() {
   }
 
   return <div className="content">
-    <div className="section-head"><div><p className="eyebrow">Directory / annual wishes</p><h2>User birthdays</h2><p className="muted">Every active user with marketing consent, their profile, birthday, current age and this year’s delivery status.</p></div><span className="badge good">{users.length} profiles</span></div>
+    <div className="section-head"><div><p className="eyebrow">Directory / annual wishes</p><h2>User birthdays</h2><p className="muted">Every active user with marketing consent, their profile, birthday, current age and this year’s delivery status.</p></div><div className="actions"><Link className="btn light" href="/dashboard/birthdays/template">Edit birthday template</Link><span className="badge good">{users.length} profiles</span></div></div>
     {status && <p className={status.startsWith("Loading") ? "muted" : "protected-note"}>{status}</p>}
     <section className="birthday-summary"><div className="card"><p className="eyebrow">Today · UTC</p><strong className="birthday-stat">{users.filter((user) => user.is_today).length}</strong><p className="muted">birthday today</p></div><div className="card"><p className="eyebrow">Year</p><strong className="birthday-stat">{year}</strong><p className="muted">one-send annual guard</p></div><div className="card"><p className="eyebrow">Date</p><strong className="birthday-date">{today || "—"}</strong><p className="muted">daily automation date</p></div></section>
     {todayUsers.length > 0 && <section className="card birthday-today"><div className="section-head"><div><p className="eyebrow">Today’s birthdays</p><h3>Send birthday wishes</h3></div><span className="badge good">{todayUsers.length} today</span></div><div className="birthday-grid">{todayUsers.map((user) => <BirthdayCard key={user.id} user={user} year={year} sending={sending === user.id} onSend={() => void sendBirthday(user)} />)}</div></section>}
     <section className="card"><div className="section-head"><div><p className="eyebrow">All birthday profiles</p><h3>Annual birthday directory</h3></div><input className="input birthday-search" placeholder="Search name, email or BINZEO ID" value={search} onChange={(event) => setSearch(event.target.value)} /></div><div className="birthday-grid">{filtered.map((user) => <BirthdayCard key={user.id} user={user} year={year} sending={sending === user.id} onSend={() => void sendBirthday(user)} />)}{!filtered.length && <p className="muted">No birthday profiles match your search.</p>}</div></section>
-    <p className="protected-note" style={{ marginTop: 18 }}><strong>Duplicate protection:</strong> the database allows only one <code>birthday_email_deliveries</code> record per user per year. Automatic daily processing and this manual button use the same guard.</p>
+    <p className="protected-note" style={{ marginTop: 18 }}><strong>Birthday template:</strong> <Link href="/dashboard/birthdays/template">edit and save the reusable wish template</Link>. If no custom version exists, the default BINZEO template is used. <strong>Duplicate protection:</strong> the database allows only one <code>birthday_email_deliveries</code> record per user per year. Automatic daily processing and this manual button use the same guard.</p>
   </div>;
 }
 
