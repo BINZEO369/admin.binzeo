@@ -9,8 +9,9 @@ export type TableDefinition = {
 
 /**
  * The dashboard is intentionally allow-listed. Keep this list in sync with the
- * shared Supabase schema so the admin can inspect every application table while
- * sensitive credential/challenge material remains redacted.
+ * shared Supabase schema. Service-role-only resources such as email_templates
+ * are intentionally managed through permission-checked admin APIs, not this
+ * user-session table browser; sensitive credential/challenge fields stay redacted.
  */
 export const DATA_TABLES: TableDefinition[] = [
   { slug: "profiles", table: "profiles", title: "Profiles", description: "Complete business profile, preferences, consent and account status.", columns: ["id", "binzeo_user_id", "first_name", "middle_name", "last_name", "display_name", "username", "date_of_birth", "gender", "profile_photo_url", "country_code", "preferred_language", "timezone", "date_format", "time_format", "currency", "marketing_email", "marketing_sms", "push_notifications", "security_notifications", "recovery_email", "account_status", "status_reason", "suspended_at", "suspended_until", "deactivated_at", "deleted_at", "terms_accepted", "terms_version", "privacy_accepted", "privacy_version", "marketing_consent", "consent_date", "created_at", "updated_at", "location_consent", "location_consent_at", "profile_photo_public_id"] },
