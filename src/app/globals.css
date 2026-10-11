@@ -124,6 +124,26 @@ button, input { font: inherit; }
 .recipient-picker .team-option { align-items: flex-start; }
 .image-slot { display: grid; gap: 8px; margin: 10px 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .preview-empty { align-items: center; border: 1px dashed var(--line); border-radius: 12px; display: flex; height: 620px; justify-content: center; margin-top: 14px; }
+.birthday-summary { display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 18px 0; }
+.birthday-stat { display: block; font-size: 30px; letter-spacing: -.06em; margin: 10px 0 2px; }
+.birthday-date { display: block; font-size: 20px; letter-spacing: -.04em; margin: 16px 0 8px; }
+.birthday-today { margin-bottom: 18px; }
+.birthday-grid { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.birthday-card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 15px; }
+.birthday-card-today { border-color: #aabfae; box-shadow: 0 8px 22px rgba(33,110,78,.08); }
+.birthday-card-head { align-items: flex-start; display: flex; gap: 11px; min-width: 0; }
+.birthday-avatar { background: var(--black); border-radius: 12px; color: white; flex: 0 0 46px; height: 46px; object-fit: cover; width: 46px; }
+.birthday-avatar-fallback { align-items: center; display: grid; font-weight: 800; place-items: center; }
+.birthday-card-identity { display: grid; gap: 2px; min-width: 0; }
+.birthday-card-identity strong, .birthday-card-identity span, .birthday-card-identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.birthday-card-identity strong { font-size: 13px; }
+.birthday-card-identity span, .birthday-card-identity small { color: var(--muted); font-size: 10px; }
+.birthday-card-head .badge { margin-left: auto; }
+.birthday-card-meta { border-bottom: 1px solid var(--line); border-top: 1px solid var(--line); display: grid; gap: 8px; grid-template-columns: repeat(3, 1fr); margin: 14px 0; padding: 10px 0; }
+.birthday-card-meta span { color: var(--muted); display: grid; font-size: 10px; gap: 3px; min-width: 0; }
+.birthday-card-meta b { color: var(--ink); font-size: 10px; }
+.birthday-card .btn { width: 100%; }
+.birthday-search { max-width: 280px; }
 
 @media (max-width: 1050px) {
   .side { width: 224px; flex-basis: 224px; }
@@ -155,6 +175,7 @@ button, input { font: inherit; }
   .user-hero { align-items: flex-start; flex-direction: column; padding: 18px; }
   .user-hero-status { text-align: left; }
   .marketing-grid, .two-col { grid-template-columns: 1fr; }
+  .birthday-summary, .birthday-grid { grid-template-columns: 1fr; }
   .table th, .table td { padding: 11px 12px; }
   .login-card { padding: 26px 22px; }
 }
