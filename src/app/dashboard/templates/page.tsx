@@ -10,7 +10,7 @@ type ButtonItem = { label: string; url: string };
 type Template = {
   id?: string;
   name: string;
-  template_type: "birthday" | "marketing";
+  template_type: "birthday" | "marketing" | "occasion";
   theme: "dark" | "light";
   subject: string;
   preview_text: string;
@@ -73,7 +73,7 @@ export default function TemplatesPage() {
   function startFromWish() {
     const title = WISH_PRESETS.find((item) => item.toLocaleLowerCase() === presetTitle.trim().toLocaleLowerCase());
     if (!title) return;
-    setForm({ ...blank, name: title, subject: title, headline: title });
+    setForm({ ...blank, name: title, template_type: "occasion", subject: title, headline: title });
     setPresetTitle("");
     setStatus(`Draft started from “${title}”. Write the email message, then save it to the central library.`);
   }
@@ -173,6 +173,7 @@ export default function TemplatesPage() {
             <label className="field-label">Type
               <select className="input" value={form.template_type} onChange={(event) => update("template_type", event.target.value as Template["template_type"])}>
                 <option value="marketing">Marketing email</option>
+                <option value="occasion">Festival / occasion email</option>
                 <option value="birthday">Birthday email</option>
               </select>
             </label>
