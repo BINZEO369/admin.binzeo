@@ -43,7 +43,7 @@ export default function TemplatesPage() {
   const [form, setForm] = useState<Template>(blank);
   const [status, setStatus] = useState("Loading saved templates…");
   const [saving, setSaving] = useState(false);
-  const [presetTitle, setPresetTitle] = useState("");
+  const [selectedWishTitle, setSelectedWishTitle] = useState("");
 
   async function load() {
     const response = await fetch("/api/admin/email-templates", { cache: "no-store" });
@@ -66,15 +66,21 @@ export default function TemplatesPage() {
   }
 
   function edit(template: Template) {
+    setSelectedWishTitle("");
     setForm({ ...blank, ...template, buttons: template.buttons ?? [], images: template.images ?? [] });
     setStatus(`Editing ${template.name}.`);
   }
 
-  function startFromWish() {
-    const title = WISH_PRESETS.find((item) => item.toLocaleLowerCase() === presetTitle.trim().toLocaleLowerCase());
-    if (!title) return;
+  function startFromWish(title: string) {
+    const hasExistingWork = Boolean(
+      form.id || form.message.trim() || form.preview_text.trim() || form.button_label.trim() || form.button_url.trim() ||
+      form.buttons.length || form.images.length ||
+      (!selectedWishTitle && (form.name.trim() || form.subject.trim() || form.headline.trim())) ||
+      (selectedWishTitle && [form.name, form.subject, form.headline].some((value) => value.trim() && value !== selectedWishTitle))
+    );
+    if (hasExistingWork && !window.confirm("Replace the current template draft with a new wish title? Unsaved edits will be lost.")) return;
+    setSelectedWishTitle(title);
     setForm({ ...blank, name: title, template_type: "occasion", subject: title, headline: title });
-    setPresetTitle("");
     setStatus(`Draft started from “${title}”. Write the email message, then save it to the central library.`);
   }
 
@@ -115,32 +121,22 @@ export default function TemplatesPage() {
 
       <section className="card" style={{ marginBottom: 18 }}>
         <p className="eyebrow">Start from a wish or occasion</p>
-        <div className="two-col">
-          <label className="field-label">
-            Search the {WISH_PRESETS.length} provided wish titles
-            <input
-              className="input"
-              list="binzeo-wish-presets"
-              value={presetTitle}
-              onChange={(event) => setPresetTitle(event.target.value)}
-              placeholder="Type to find a wish or occasion"
-            />
-            <datalist id="binzeo-wish-presets">
-              {WISH_PRESETS.map((title) => <option key={title} value={title} />)}
-            </datalist>
-          </label>
-          <div className="actions" style={{ alignItems: "end" }}>
-            <button
-              className="btn"
-              type="button"
-              disabled={!WISH_PRESETS.some((item) => item.toLocaleLowerCase() === presetTitle.trim().toLocaleLowerCase())}
-              onClick={startFromWish}
-            >
-              Create draft from title
-            </button>
-          </div>
-        </div>
-        <p className="muted">A selected title fills the template name, subject and headline. The wish list contains titles only, so write the email body before saving. Nothing is sent automatically.</p>
+        <p className="muted">All {WISH_PRESETS.length} provided titles are listed below. Select any title once to start its Occasion draft; then write the message and save. Nothing is sent automatically.</p>
+        <ol className="wish-presets-grid" aria-label="110 wish and occasion titles">
+          {WISH_PRESETS.map((title, index) => (
+            <li key={title}>
+              <button
+                className="wish-preset-button"
+                type="button"
+                aria-pressed={selectedWishTitle === title}
+                onClick={() => startFromWish(title)}
+              >
+                <span className="wish-preset-number">{String(index + 1).padStart(2, "0")}</span>
+                <span>{title}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
       </section>
 
       <div className="marketing-grid">
@@ -161,7 +157,7 @@ export default function TemplatesPage() {
             ))}
             {!templates.length && <span className="muted">No templates saved yet.</span>}
           </div>
-          <button className="btn light" type="button" onClick={() => { setForm({ ...blank }); setStatus("Creating a new template."); }}>
+          <button className="btn light" type="button" onClick={() => { setSelectedWishTitle(""); setForm({ ...blank }); setStatus("Creating a new template."); }}>
             + New template
           </button>
         </section>
