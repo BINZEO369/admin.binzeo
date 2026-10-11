@@ -129,6 +129,20 @@ button, input { font: inherit; }
 .wish-preset-button:focus-visible { border-color: var(--ink); outline: 3px solid rgba(0,0,0,.16); outline-offset: 2px; }
 .wish-preset-button[aria-pressed="true"] { background: var(--soft); border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 .wish-preset-number { color: var(--muted); flex: 0 0 24px; font-size: 10px; font-variant-numeric: tabular-nums; font-weight: 800; padding-top: 1px; }
+.content-block-editor { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 16px; }
+.content-block-tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.content-block-list { display: grid; gap: 10px; margin-top: 12px; }
+.content-block-card { background: var(--canvas); border: 1px solid var(--line); border-radius: 11px; min-width: 0; padding: 13px; }
+.content-block-head { align-items: center; display: flex; gap: 10px; justify-content: space-between; margin-bottom: 8px; }
+.content-block-head > strong { font-size: 12px; }
+.content-block-head .actions { flex-wrap: wrap; }
+.content-block-head .btn { padding: 8px 10px; }
+.content-block-button-fields { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.template-preview-panel { border-top: 1px solid var(--line); margin-top: 22px; padding-top: 16px; }
+.template-preview-head { align-items: end; display: flex; gap: 14px; justify-content: space-between; }
+.template-preview-head p { margin: 4px 0 0; }
+.template-preview-subject { font-size: 13px; margin: 13px 0; overflow-wrap: anywhere; }
+.template-preview-panel .email-preview-render { display: block; height: 640px; max-height: 720px; min-height: 620px; width: 100%; }
 .image-slot { display: grid; gap: 8px; margin: 10px 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .preview-empty { align-items: center; border: 1px dashed var(--line); border-radius: 12px; display: flex; height: 620px; justify-content: center; margin-top: 14px; }
 .birthday-summary { display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 18px 0; }
@@ -184,6 +198,8 @@ button, input { font: inherit; }
   .user-hero-status { text-align: left; }
   .marketing-grid, .two-col { grid-template-columns: 1fr; }
   .wish-presets-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .content-block-button-fields { grid-template-columns: 1fr; }
+  .template-preview-head { align-items: flex-start; flex-direction: column; }
   .birthday-summary, .birthday-grid { grid-template-columns: 1fr; }
   .table th, .table td { padding: 11px 12px; }
   .login-card { padding: 26px 22px; }
