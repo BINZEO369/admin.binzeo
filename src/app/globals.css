@@ -138,6 +138,11 @@ button, input { font: inherit; }
 .content-block-head .actions { flex-wrap: wrap; }
 .content-block-head .btn { padding: 8px 10px; }
 .content-block-button-fields { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.content-block-image-fields { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.content-block-toggle { align-items: center; color: var(--ink-soft); display: flex; font-size: 12px; font-weight: 750; gap: 9px; margin-top: 14px; }
+.content-block-toggle input { accent-color: var(--black); height: 16px; width: 16px; }
+.image-overlay-editor { background: var(--paper); border: 1px dashed var(--line-strong); border-radius: 10px; margin-top: 12px; padding: 12px; }
+.image-layout-hint { font-size: 11px; margin: 7px 0 0; }
 .template-preview-panel { border-top: 1px solid var(--line); margin-top: 22px; padding-top: 16px; }
 .template-preview-head { align-items: end; display: flex; gap: 14px; justify-content: space-between; }
 .template-preview-head p { margin: 4px 0 0; }
@@ -199,6 +204,7 @@ button, input { font: inherit; }
   .marketing-grid, .two-col { grid-template-columns: 1fr; }
   .wish-presets-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .content-block-button-fields { grid-template-columns: 1fr; }
+  .content-block-image-fields { grid-template-columns: 1fr; }
   .template-preview-head { align-items: flex-start; flex-direction: column; }
   .birthday-summary, .birthday-grid { grid-template-columns: 1fr; }
   .table th, .table td { padding: 11px 12px; }
