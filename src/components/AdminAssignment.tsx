@@ -132,7 +132,7 @@ export default function AdminAssignment() {
       <span className="badge warn">Super Admin only</span>
     </div>
     {notice && <p className={notice.type === "error" ? "error" : "protected-note"} role="status">{notice.text}</p>}
-    <div className="grid" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", alignItems: "start" }}>
+    <div className="admin-access-layout">
       <section className="card" style={{ boxShadow: "none", background: "var(--surface-2, #f8fafc)" }}>
         <p className="eyebrow">{assignments.some((item) => item.user_id === selected) ? "Edit access" : "Assign access"}</p>
         <label className="form-grid" style={{ maxWidth: "none", gap: 7 }}><span className="muted" style={{ fontSize: 12, fontWeight: 700 }}>Find a user</span><input className="input" placeholder="Search email, name, username or BINZEO ID" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
@@ -140,10 +140,10 @@ export default function AdminAssignment() {
         {selectedCandidate && <p className="muted" style={{ margin: "8px 0 0", fontSize: 12 }}>Account status: {selectedCandidate.account_status ?? "unknown"} · ID: {selectedCandidate.binzeo_user_id ?? selectedCandidate.id}</p>}
 
         <p className="muted" style={{ margin: "18px 0 8px", fontWeight: 700 }}>Roles</p>
-        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 8 }}>{ADMIN_ROLE_OPTIONS.map((role) => <label key={role.id} className="card" style={{ display: "flex", gap: 9, alignItems: "flex-start", padding: 11, boxShadow: "none" }}><input type="checkbox" checked={roles.includes(role.id)} onChange={() => toggleRole(role.id)} /><span><strong>{role.label}</strong><br /><small className="muted">{role.description}</small></span></label>)}</div>
+        <div className="admin-role-options">{ADMIN_ROLE_OPTIONS.map((role) => <label key={role.id} className="card" style={{ display: "flex", gap: 9, alignItems: "flex-start", padding: 11, boxShadow: "none" }}><input type="checkbox" checked={roles.includes(role.id)} onChange={() => toggleRole(role.id)} /><span><strong>{role.label}</strong><br /><small className="muted">{role.description}</small></span></label>)}</div>
 
         <div className="section-head" style={{ margin: "18px 0 8px" }}><div><p className="muted" style={{ margin: 0, fontWeight: 700 }}>Permissions</p><small className="muted">{hasSuperAdmin ? "Super Admin receives every permission automatically." : "Role presets are included; adjust permissions as needed."}</small></div><span className="badge">{permissions.length} selected</span></div>
-        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 7 }}>{ADMIN_PERMISSION_OPTIONS.map((permission) => <label key={permission.id} className="muted" style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12 }}><input type="checkbox" checked={permissions.includes(permission.id)} onChange={() => togglePermission(permission.id)} disabled={hasSuperAdmin} /><span><strong>{permission.label}</strong><br />{permission.description}</span></label>)}</div>
+        <div className="admin-permission-options">{ADMIN_PERMISSION_OPTIONS.map((permission) => <label key={permission.id} className="muted" style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12 }}><input type="checkbox" checked={permissions.includes(permission.id)} onChange={() => togglePermission(permission.id)} disabled={hasSuperAdmin} /><span><strong>{permission.label}</strong><br />{permission.description}</span></label>)}</div>
 
         <label className="muted" style={{ display: "flex", gap: 9, alignItems: "center", marginTop: 16 }}><input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} /> Admin access is active</label>
         <div className="actions" style={{ marginTop: 14 }}><button className="btn" type="button" onClick={() => void save()} disabled={!selected || !roles.length || saving}>{saving ? "Saving…" : "Save role & permissions"}</button>{selected && <button className="btn light" type="button" onClick={resetForm} disabled={saving}>Clear</button>}</div>
