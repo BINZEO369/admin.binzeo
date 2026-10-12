@@ -164,16 +164,22 @@ export default function TemplatesPage() {
   const [previewHtml, setPreviewHtml] = useState("");
   const [selectedWishTitle, setSelectedWishTitle] = useState("");
 
-  async function load() {
-    const response = await fetch("/api/admin/email-templates", { cache: "no-store" });
-    const json = await response.json();
-    const data = json.data ?? json;
-    if (!response.ok) {
-      setStatus(json.error?.message ?? "Templates could not be loaded.");
-      return;
+  async function load(announce = true): Promise<boolean> {
+    try {
+      const response = await fetch("/api/admin/email-templates", { cache: "no-store" });
+      const json = await response.json();
+      const data = json.data ?? json;
+      if (!response.ok) {
+        setStatus(json.error?.message ?? "Templates could not be loaded.");
+        return false;
+      }
+      setTemplates(data.templates ?? []);
+      if (announce) setStatus((data.templates ?? []).length ? "Saved templates loaded." : "No templates saved yet.");
+      return true;
+    } catch {
+      setStatus("Could not reach the saved template list.");
+      return false;
     }
-    setTemplates(data.templates ?? []);
-    setStatus((data.templates ?? []).length ? "Saved templates loaded." : "No templates saved yet.");
   }
 
   useEffect(() => {
@@ -308,11 +314,18 @@ export default function TemplatesPage() {
         setStatus(json.error?.message ?? "Template could not be saved.");
         return;
       }
-      setForm({ ...blank, ...data.template, buttons: data.template.buttons ?? [], images: data.template.images ?? [], content_blocks: data.template.content_blocks ?? [] });
-      setStatus("Template saved in the central email template library.");
-      await load();
+      const savedTemplate = data.template as Template | undefined;
+      if (!savedTemplate?.id || !savedTemplate.updated_at) {
+        setStatus("The save service did not confirm the database write. Reload the template list before retrying.");
+        return;
+      }
+      setForm({ ...blank, ...savedTemplate, buttons: savedTemplate.buttons ?? [], images: savedTemplate.images ?? [], content_blocks: savedTemplate.content_blocks ?? [] });
+      const refreshed = await load(false);
+      setStatus(refreshed
+        ? `Saved in the database: ${savedTemplate.name} · ${new Date(savedTemplate.updated_at).toLocaleString()}`
+        : `Saved in the database: ${savedTemplate.name}. The saved list could not refresh; reload the page to see it.`);
     } catch {
-      setStatus("Could not reach the template service. Please try again.");
+      setStatus("Could not confirm whether the save completed. Reload the template list before retrying.");
     } finally {
       setSaving(false);
     }
@@ -501,7 +514,7 @@ export default function TemplatesPage() {
             {previewHtml && <><p className="template-preview-subject"><strong>Subject:</strong> {form.subject || "(no subject yet)"}</p><iframe className="email-preview-render" title="Unsaved email template preview" sandbox="" referrerPolicy="no-referrer" srcDoc={previewHtml} /></>}
           </section>
           <div className="actions"><button className="btn" type="button" disabled={saving || previewing} onClick={() => void save()}>{saving ? "Saving…" : "Save template"}</button></div>
-          {status && <p className="muted" role="status">{status}</p>}
+          {status && <p className="muted" role="status" aria-live="polite">{status}</p>}
         </section>
       </div>
     </div>
