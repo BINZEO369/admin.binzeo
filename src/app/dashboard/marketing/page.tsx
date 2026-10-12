@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import EmailRecipientSelector, { type EmailRecipient } from "@/components/EmailRecipientSelector";
 
 type User = EmailRecipient;
@@ -19,6 +19,8 @@ const MONO = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospac
 const SANS = '-apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif';
 const SHADES = ["#0A0A0A", "#404040", "#737373", "#A3A3A3", "#D4D4D4", "#E5E5E5"];
 
+type BatchInfo = { current: number; total: number; sent: number; failed: number; skipped: number };
+
 /* ================= ANIMATED CSS ================= */
 const ANIM_CSS = `
   @keyframes bzDraw   { to { stroke-dashoffset: 0; } }
@@ -29,7 +31,7 @@ const ANIM_CSS = `
   @keyframes bzRiseUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes bzPulse  { 0%,100% { opacity: 1; } 50% { opacity: .28; } }
   @keyframes bzSpin   { to { transform: rotate(360deg); } }
-  @keyframes bzShimmer{ from { background-position: -200% 0; } to { background-position: 200% 0; } }
+  @keyframes bzStripe { from { background-position: 0 0; } to { background-position: 40px 0; } }
 
   .bz-spark-line { stroke-dasharray: 500; stroke-dashoffset: 500; animation: bzDraw 1s cubic-bezier(.4,0,.2,1) forwards; }
   .bz-spark-area { opacity: 0; animation: bzFadeIn .7s ease-out .3s forwards; }
@@ -43,18 +45,38 @@ const ANIM_CSS = `
   .bz-spin { animation: bzSpin .9s linear infinite; }
   .bz-card { transition: transform .22s cubic-bezier(.2,.7,.2,1), border-color .22s ease, box-shadow .22s ease; }
   .bz-card:hover { transform: translateY(-2px); border-color: ${T.black}; box-shadow: 0 14px 32px -22px rgba(0,0,0,.24); }
+
   .bz-team { transition: background .18s ease, border-color .18s ease; cursor: pointer; user-select: none; }
   .bz-team:hover { border-color: ${T.black} !important; }
   .bz-team.on { background: ${T.black} !important; color: #fff !important; border-color: ${T.black} !important; }
   .bz-team.on .bz-team-dot { background: #fff !important; }
   .bz-team.disabled { opacity: .45; cursor: not-allowed; }
+
+  .bz-seg { transition: background .18s ease, color .18s ease, border-color .18s ease; cursor: pointer; user-select: none; }
+  .bz-seg:hover:not(:disabled) { background: ${T.soft} !important; border-color: ${T.black} !important; }
+  .bz-seg:disabled { opacity: .4; cursor: not-allowed; }
+  .bz-seg.on { background: ${T.black} !important; color: #fff !important; border-color: ${T.black} !important; }
+
   .bz-select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%23737373' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 34px !important; cursor: pointer; }
   .bz-select:focus { outline: none; border-color: ${T.black} !important; box-shadow: 0 0 0 3px rgba(10,10,10,.08); }
+
   .bz-btn { transition: background .18s ease, color .18s ease, border-color .18s ease, transform .12s ease; cursor: pointer; }
   .bz-btn:hover:not(:disabled) { background: ${T.gray700} !important; border-color: ${T.gray700} !important; transform: translateY(-1px); }
   .bz-btn:disabled { opacity: .45; cursor: not-allowed; }
+
   .bz-btn-ghost { transition: background .18s ease, color .18s ease, border-color .18s ease; cursor: pointer; text-decoration: none; }
   .bz-btn-ghost:hover { background: ${T.black} !important; color: #fff !important; border-color: ${T.black} !important; }
+
+  .bz-btn-danger { transition: background .18s ease, border-color .18s ease, transform .12s ease; cursor: pointer; }
+  .bz-btn-danger:hover:not(:disabled) { background: ${T.gray700} !important; border-color: ${T.gray700} !important; color: #fff !important; }
+
+  .bz-progress-fill {
+    background-image: linear-gradient(135deg,
+      rgba(255,255,255,.18) 25%, transparent 25%, transparent 50%,
+      rgba(255,255,255,.18) 50%, rgba(255,255,255,.18) 75%, transparent 75%);
+    background-size: 40px 40px;
+    animation: bzStripe .8s linear infinite;
+  }
 
   .bz-grid-kpi { grid-template-columns: repeat(4, 1fr); }
   .bz-grid-2 { grid-template-columns: 1.15fr 1fr; }
@@ -73,6 +95,7 @@ const ANIM_CSS = `
     .bz-spark-line,.bz-spark-area,.bz-spark-dot,.bz-bar-rect,.bz-hbar,.bz-donut-seg,.bz-fade-up,.bz-number{
       animation: none !important; opacity: 1 !important; transform: none !important; stroke-dashoffset: 0 !important;
     }
+    .bz-progress-fill { animation: none !important; }
   }
 `;
 
@@ -226,6 +249,128 @@ function KPICard({ label, value, detail, spark, index, delay = 0 }: {
   );
 }
 
+/* ================= UI: Batch Progress ================= */
+function BatchProgress({ info }: { info: BatchInfo }) {
+  const total = Math.max(info.total, 1);
+  const pct = Math.min(100, Math.round((info.current / total) * 100));
+  const remaining = Math.max(0, total - info.current);
+  const etaSec = remaining * 2;
+
+  return (
+    <div className="bz-fade-up" style={{
+      background: T.surface, border: `1px solid ${T.black}`, borderRadius: 14,
+      padding: "16px 18px", marginBottom: 20,
+      display: "flex", flexDirection: "column", gap: 12,
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+          <span className="bz-spin" style={{
+            width: 14, height: 14, borderRadius: 999,
+            border: `2px solid ${T.line}`, borderTopColor: T.black,
+          }} />
+          <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T.black }}>
+            Batch {info.current} / {info.total}
+          </span>
+        </div>
+        <span style={{ fontFamily: MONO, fontSize: 11.5, color: T.muted }}>
+          {pct}% · {remaining > 0 ? `~${etaSec}s left` : "finishing…"}
+        </span>
+      </div>
+
+      <div style={{ height: 8, background: T.soft, borderRadius: 999, overflow: "hidden", position: "relative" }}>
+        <div
+          className="bz-progress-fill"
+          style={{
+            width: `${pct}%`, height: "100%",
+            background: T.black,
+            borderRadius: 999,
+            transition: "width .5s cubic-bezier(.2,.7,.2,1)",
+          }}
+        />
+      </div>
+
+      <div className="bz-grid-3" style={{ display: "grid", gap: 8 }}>
+        {[
+          { label: "Sent", value: info.sent },
+          { label: "Failed", value: info.failed },
+          { label: "Skipped", value: info.skipped },
+        ].map((r) => (
+          <div key={r.label} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: T.muted, fontWeight: 600 }}>{r.label}</span>
+            <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: T.black, fontVariantNumeric: "tabular-nums" }}>
+              {r.value.toLocaleString("en-US")}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ================= UI: Template Preview ================= */
+function TemplatePreview({ template }: { template: Template | null }) {
+  if (!template) {
+    return (
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        gap: 6, padding: "20px 14px",
+        border: `1px dashed ${T.line}`, borderRadius: 12,
+        background: T.canvas, minHeight: 108,
+      }}>
+        <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: T.faint, fontWeight: 600 }}>
+          No template selected
+        </span>
+        <span style={{ fontSize: 11.5, color: T.muted }}>
+          Choose a saved template to see its details here.
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bz-fade-up" style={{
+      display: "flex", gap: 14, alignItems: "flex-start",
+      padding: "16px 18px", border: `1px solid ${T.black}`, borderRadius: 12,
+      background: T.canvas,
+    }}>
+      <span style={{
+        width: 44, height: 44, borderRadius: 12, background: T.black, color: "#fff",
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", flexShrink: 0,
+      }}>
+        {template.name.slice(0, 1).toUpperCase()}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>
+          <span style={{
+            fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600,
+            fontFamily: MONO, color: "#fff", background: T.black,
+            border: `1px solid ${T.black}`, borderRadius: 999, padding: "3px 10px",
+          }}>
+            {template.template_type}
+          </span>
+          <span style={{
+            fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600,
+            fontFamily: MONO, color: T.black, background: "#fff",
+            border: `1px solid ${T.line}`, borderRadius: 999, padding: "3px 10px",
+          }}>
+            theme · {template.theme}
+          </span>
+        </div>
+        <h4 style={{
+          margin: "4px 0 4px", fontSize: 15, fontWeight: 650, letterSpacing: "-0.02em",
+          color: T.black, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {template.name}
+        </h4>
+        <p style={{ margin: 0, fontFamily: MONO, fontSize: 11, color: T.muted }}>
+          Ready to send · {template.id.slice(0, 8)}…
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /* ================= PAGE ================= */
 export default function MarketingPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -238,6 +383,10 @@ export default function MarketingPage() {
   const [status, setStatus] = useState("Loading users and saved templates…");
   const [working, setWorking] = useState(false);
   const [lastResult, setLastResult] = useState<{ sent: number; failed: number; skipped: number } | null>(null);
+  const [batchInfo, setBatchInfo] = useState<BatchInfo | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -257,16 +406,24 @@ export default function MarketingPage() {
     }).catch((error) => setStatus(error instanceof Error ? error.message : "Could not load users and saved templates."));
   }, []);
 
-  async function sendBatch(recipientIds: string[], selectedTemplate: Template) {
+  async function sendBatch(recipientIds: string[], selectedTemplate: Template, signal?: AbortSignal) {
     const response = await fetch("/api/admin/marketing", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "send", template_id: selectedTemplate.id, template: selectedTemplate.template_type, selected_user_ids: recipientIds, team_ids: [] }),
+      signal,
     });
     const json = await response.json();
     const data = json.data ?? json;
     if (!response.ok) throw new Error(json.error?.message ?? "Send failed.");
     return { sent: Number(data.sent ?? 0), failed: Number(data.failed ?? 0), skipped: Number(data.skipped ?? 0) };
+  }
+
+  function cancelSend() {
+    if (abortRef.current) {
+      setCancelling(true);
+      abortRef.current.abort();
+    }
   }
 
   async function send() {
@@ -279,21 +436,42 @@ export default function MarketingPage() {
 
     setWorking(true);
     setLastResult(null);
+    setBatchInfo(null);
+    setCancelling(false);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     let sent = 0;
     let failed = 0;
     let skipped = 0;
     let completedBatches = 0;
+    let aborted = false;
+
     try {
       if (selectedUsers.length) {
         const batches = Array.from({ length: Math.ceil(selectedUsers.length / BATCH_SIZE) }, (_, index) => selectedUsers.slice(index * BATCH_SIZE, (index + 1) * BATCH_SIZE));
+
+        setBatchInfo({ current: 0, total: batches.length, sent: 0, failed: 0, skipped: 0 });
+
         for (let index = 0; index < batches.length; index += 1) {
+          if (controller.signal.aborted) { aborted = true; break; }
           const batch = batches[index];
+          setBatchInfo({ current: index + 1, total: batches.length, sent, failed, skipped });
           setStatus(`Sending batch ${index + 1} of ${batches.length} (${sent} sent so far)…`);
-          const result = await sendBatch(batch, template);
+
+          const result = await sendBatch(batch, template, controller.signal);
           sent += result.sent; failed += result.failed; skipped += result.skipped; completedBatches += 1;
+
+          setBatchInfo({ current: index + 1, total: batches.length, sent, failed, skipped });
           setSelectedUsers((current) => current.filter((id) => !batch.includes(id)));
         }
-        setStatus(`Email complete: ${sent} sent, ${failed} failed, ${skipped} skipped across ${completedBatches} logged campaign batch(es).`);
+
+        if (aborted) {
+          setStatus(`Cancelled after ${sent} sent, ${failed} failed, ${skipped} skipped across ${completedBatches} logged batch(es). The remaining recipients were not contacted.`);
+        } else {
+          setStatus(`Email complete: ${sent} sent, ${failed} failed, ${skipped} skipped across ${completedBatches} logged campaign batch(es).`);
+        }
         setLastResult({ sent, failed, skipped });
       } else {
         setStatus("Sending to selected teams…");
@@ -301,6 +479,7 @@ export default function MarketingPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "send", template_id: templateId, template: template.template_type, selected_user_ids: [], team_ids: teamIds }),
+          signal: controller.signal,
         });
         const json = await response.json();
         const data = json.data ?? json;
@@ -309,11 +488,20 @@ export default function MarketingPage() {
         setLastResult({ sent: Number(data.sent ?? 0), failed: Number(data.failed ?? 0), skipped: Number(data.skipped ?? 0) });
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "The send request did not complete.";
-      setStatus(`Stopped after ${sent} sent, ${failed} failed and ${skipped} skipped. ${message} Check the campaign delivery records before retrying.`);
-      setLastResult({ sent, failed, skipped });
+      const isAbort = error instanceof DOMException && error.name === "AbortError";
+      if (isAbort) {
+        setStatus(`Cancelled after ${sent} sent, ${failed} failed and ${skipped} skipped. Remaining recipients were not contacted.`);
+        setLastResult({ sent, failed, skipped });
+      } else {
+        const message = error instanceof Error ? error.message : "The send request did not complete.";
+        setStatus(`Stopped after ${sent} sent, ${failed} failed and ${skipped} skipped. ${message} Check the campaign delivery records before retrying.`);
+        setLastResult({ sent, failed, skipped });
+      }
     } finally {
+      abortRef.current = null;
       setWorking(false);
+      setCancelling(false);
+      setBatchInfo(null);
     }
   }
 
@@ -335,7 +523,11 @@ export default function MarketingPage() {
         }).length
       : 0;
 
-  /* language distribution of eligible users (real) */
+  /* estimated time for individual sends */
+  const estimatedBatches = selectedUsers.length > 0 ? Math.ceil(selectedUsers.length / BATCH_SIZE) : 0;
+  const estimatedSeconds = estimatedBatches * 2;
+
+  /* language distribution (real) */
   const langMap = new Map<string, number>();
   users.forEach((u) => {
     const raw = (u as unknown as { preferred_language?: string | null }).preferred_language;
@@ -370,6 +562,14 @@ export default function MarketingPage() {
   ];
 
   const loading = status.startsWith("Loading");
+
+  /* quick audience segments (safety: only rely on stable ids) */
+  const segments = [
+    { key: "all", label: `All · ${users.length}`, on: selectedUsers.length === users.length && users.length > 0, apply: () => setSelectedUsers(users.map((u) => u.id)), disabled: working || users.length === 0 },
+    { key: "first50", label: `First 50`, on: false, apply: () => setSelectedUsers(users.slice(0, 50).map((u) => u.id)), disabled: working || users.length === 0 },
+    { key: "first100", label: `First 100`, on: false, apply: () => setSelectedUsers(users.slice(0, 100).map((u) => u.id)), disabled: working || users.length === 0 },
+    { key: "clear", label: "Clear", on: false, apply: () => setSelectedUsers([]), disabled: working || selectedUsers.length === 0 },
+  ];
 
   return (
     <div style={{ background: T.canvas, minHeight: "100%", padding: "32px clamp(20px, 4vw, 48px) 80px", color: T.ink, fontFamily: SANS }}>
@@ -437,8 +637,11 @@ export default function MarketingPage() {
         </div>
       </section>
 
+      {/* ============ LIVE BATCH PROGRESS ============ */}
+      {batchInfo && <BatchProgress info={batchInfo} />}
+
       {/* ============ STATUS BANNER ============ */}
-      {status && (
+      {status && !batchInfo && (
         <div className="bz-fade-up" role="status" style={{
           display: "flex", alignItems: "flex-start", gap: 12,
           padding: "14px 18px", marginBottom: 20,
@@ -464,8 +667,8 @@ export default function MarketingPage() {
         </div>
       )}
 
-      {/* ============ RESULT SUMMARY (only after a send) ============ */}
-      {lastResult && (
+      {/* ============ RESULT SUMMARY ============ */}
+      {lastResult && !working && (
         <section className="bz-grid-3" style={{ display: "grid", gap: 12, marginBottom: 20 }}>
           {[
             { label: "Sent", value: lastResult.sent, tone: "ok" as const },
@@ -520,26 +723,9 @@ export default function MarketingPage() {
                 </option>
               ))}
             </select>
-            {selectedTemplate && (
-              <div className="bz-fade-up" style={{
-                display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4,
-              }}>
-                <span style={{
-                  fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600,
-                  fontFamily: MONO, color: "#fff", background: T.black,
-                  border: `1px solid ${T.black}`, borderRadius: 999, padding: "3px 10px",
-                }}>
-                  {selectedTemplate.template_type}
-                </span>
-                <span style={{
-                  fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600,
-                  fontFamily: MONO, color: T.black, background: "#fff",
-                  border: `1px solid ${T.line}`, borderRadius: 999, padding: "3px 10px",
-                }}>
-                  theme · {selectedTemplate.theme}
-                </span>
-              </div>
-            )}
+
+            {/* Template preview card */}
+            <TemplatePreview template={selectedTemplate} />
           </div>
 
           <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6, color: T.muted }}>
@@ -604,34 +790,64 @@ export default function MarketingPage() {
             )}
           </div>
 
-          {/* Send button */}
+          {/* Send button + cancel */}
           <div style={{
             display: "flex", flexDirection: "column", gap: 12,
             paddingTop: 16, marginTop: 8, borderTop: `1px solid ${T.line}`,
           }}>
-            <button
-              className="bz-btn"
-              type="button"
-              disabled={working || (!selectedUsers.length && !teamIds.length) || !templateId}
-              onClick={() => void send()}
-              style={{
-                width: "100%", padding: "14px 18px",
-                fontSize: 13.5, fontWeight: 700, fontFamily: MONO, letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "#fff", background: T.black, border: `1px solid ${T.black}`,
-                borderRadius: 12,
-              }}
-            >
-              {working
-                ? "Sending…"
-                : selectedUsers.length
+            {!working ? (
+              <button
+                className="bz-btn"
+                type="button"
+                disabled={(!selectedUsers.length && !teamIds.length) || !templateId}
+                onClick={() => void send()}
+                style={{
+                  width: "100%", padding: "14px 18px",
+                  fontSize: 13.5, fontWeight: 700, fontFamily: MONO, letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: "#fff", background: T.black, border: `1px solid ${T.black}`,
+                  borderRadius: 12,
+                }}
+              >
+                {selectedUsers.length
                   ? `Send to ${selectedUsers.length} selected`
                   : teamIds.length
                     ? `Send to ${teamIds.length} team${teamIds.length > 1 ? "s" : ""}`
                     : "Send"}
-            </button>
+              </button>
+            ) : (
+              <button
+                className="bz-btn-danger"
+                type="button"
+                disabled={cancelling}
+                onClick={cancelSend}
+                style={{
+                  width: "100%", padding: "14px 18px",
+                  fontSize: 13.5, fontWeight: 700, fontFamily: MONO, letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: T.black, background: "#fff", border: `1px solid ${T.black}`,
+                  borderRadius: 12,
+                }}
+              >
+                {cancelling ? "Cancelling…" : "✕ Cancel send"}
+              </button>
+            )}
+
+            {/* Estimated time */}
+            {!working && estimatedBatches > 0 && (
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "baseline",
+                fontFamily: MONO, fontSize: 11.5, color: T.muted, gap: 8,
+              }}>
+                <span>Estimated send</span>
+                <span style={{ color: T.black, fontWeight: 700 }}>
+                  {estimatedBatches} batch{estimatedBatches > 1 ? "es" : ""} · ~{estimatedSeconds}s
+                </span>
+              </div>
+            )}
+
             <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.6, color: T.muted, fontFamily: MONO }}>
-              Large individual selections run in safe batches of {BATCH_SIZE}. Each batch is separately recorded in campaign history.
+              Large individual selections run in safe batches of {BATCH_SIZE}. Each batch is separately recorded in campaign history. Sending can be cancelled at any time.
             </p>
           </div>
         </Panel>
@@ -654,6 +870,28 @@ export default function MarketingPage() {
           <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6, color: T.muted }}>
             Only active users who allowed <strong style={{ color: T.black }}>Marketing emails</strong> are listed. Select all eligible users or combine filters for a targeted group.
           </p>
+
+          {/* Quick segments */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {segments.map((seg) => (
+              <button
+                key={seg.key}
+                type="button"
+                className={`bz-seg ${seg.on ? "on" : ""}`}
+                disabled={seg.disabled || working}
+                onClick={seg.apply}
+                style={{
+                  padding: "7px 12px", borderRadius: 999,
+                  border: `1px solid ${T.line}`,
+                  background: seg.on ? T.black : "#fff",
+                  color: seg.on ? "#fff" : T.black,
+                  fontFamily: MONO, fontSize: 11.5, fontWeight: 600, letterSpacing: "0.02em",
+                }}
+              >
+                {seg.label}
+              </button>
+            ))}
+          </div>
 
           {audienceTruncated && (
             <div className="bz-fade-up" style={{
@@ -755,7 +993,7 @@ export default function MarketingPage() {
         display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center",
         fontFamily: MONO, fontSize: 11, color: T.faint, letterSpacing: "0.04em",
       }}>
-        <span>BINZEO ADMIN CONSOLE — MARKETING v2.0</span>
+        <span>BINZEO ADMIN CONSOLE — MARKETING v3.0</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
           <span className="bz-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: T.black }} />
           SEND-ONLY MODE · {users.length.toLocaleString("en-US")} ELIGIBLE
