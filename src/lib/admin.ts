@@ -56,6 +56,16 @@ export function isSuperAdmin(access: { roles?: unknown } | null | undefined): bo
   return Array.isArray(access?.roles) && access.roles.includes("super_admin");
 }
 
+export function canReadPrivacyAnalytics(access: { roles: string[] } | null | undefined): boolean {
+  return isSuperAdmin(access) || Boolean(access?.roles.includes("analytics"));
+}
+
+export async function requirePrivacyAnalyticsAdmin(): Promise<AdminContext> {
+  const context = await requireAdmin();
+  if (!canReadPrivacyAnalytics(context.access)) notFound();
+  return context;
+}
+
 export function hasAdminPermission(access: { roles: string[]; permissions: string[] }, permission: string): boolean {
   return isSuperAdmin(access) || access.permissions.includes(permission);
 }

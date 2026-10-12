@@ -265,3 +265,14 @@ button, input { font: inherit; }
   .top h1 { font-size: 13px; }
   .stat { font-size: 27px; }
 }
+
+
+.privacy-analytics-groups { display: grid; gap: 30px; }
+.privacy-analytics-group-head { margin-bottom: 14px; }
+.privacy-analytics-group-head h3 { font-size: 20px; letter-spacing: -.035em; margin: 5px 0; }
+.privacy-table-name { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px !important; min-height: 0 !important; overflow-wrap: anywhere; }
+.privacy-analytics-pagination { align-items: center; margin-top: 18px; }
+@media (max-width: 680px) {
+  .privacy-analytics-pagination { align-items: center; flex-direction: row; }
+  .privacy-analytics-pagination .explorer-tools { width: auto; }
+}
