@@ -1,5 +1,6 @@
 export const ADMIN_ROLE_OPTIONS = [
   { id: "super_admin", label: "Super Admin", description: "Full dashboard and data access" },
+  { id: "analytics", label: "Analytics", description: "Read-only privacy, consent and visitor analytics tables" },
   { id: "support_admin", label: "Support Admin", description: "User support and account operations" },
   { id: "auditor", label: "Auditor", description: "Read-only audit review" },
   { id: "custom", label: "Custom", description: "Use only the permissions selected below" },

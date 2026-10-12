@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { hasAdminPermission, requireAdmin } from "@/lib/admin";
+import { canReadPrivacyAnalytics, hasAdminPermission, requireAdmin } from "@/lib/admin";
 import { DATA_TABLES } from "@/lib/data-tables";
 import LogoutButton from "@/components/LogoutButton";
 
@@ -29,6 +29,7 @@ export default async function AdminShell({ children }: { children: React.ReactNo
   });
   const links = [
     ...visibleCoreLinks,
+    ...(canReadPrivacyAnalytics(ctx.access) ? [["Privacy & analytics", "/dashboard/privacy-analytics"] as const] : []),
     ...(hasAdminPermission(ctx.access, "database.read") ? DATA_TABLES.map((item) => [item.title, `/dashboard/${item.slug}`] as const) : []),
     ...(hasAdminPermission(ctx.access, "auth.read") ? [["Authentication accounts", "/dashboard/auth-users"] as const] : []),
   ];
