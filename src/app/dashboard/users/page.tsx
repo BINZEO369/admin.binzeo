@@ -370,7 +370,16 @@ export default async function UsersPage() {
     .order("created_at", { ascending: false })
     .limit(500);
 
-  const users = (data ?? []) as User[];
+  const users = ((data ?? []) as User[]).map((user) => ({
+    id: user.id,
+    binzeo_user_id: user.binzeo_user_id ?? null,
+    display_name: user.display_name ?? null,
+    username: user.username ?? null,
+    profile_photo_url: user.profile_photo_url ?? null,
+    country_code: user.country_code ?? null,
+    preferred_language: user.preferred_language ?? null,
+    created_at: user.created_at ?? "",
+  }));
 
   /* -------- overview stats (all real) -------- */
   const now = new Date();
