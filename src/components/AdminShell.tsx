@@ -14,7 +14,6 @@ const coreLinks = [
   ["User birthdays", "/dashboard/birthdays"],
   ["Login history", "/dashboard/security"],
   ["Admin audit", "/dashboard/audit"],
-  ["Settings & roles", "/dashboard/settings"],
 ];
 
 export default async function AdminShell({ children }: { children: React.ReactNode }) {
@@ -37,7 +36,8 @@ export default async function AdminShell({ children }: { children: React.ReactNo
     <div className="shell">
       <aside className="side">
         <div className="brand"><span className="brand-mark">B</span><span>BINZEO Admin</span></div>
-        <nav className="nav" aria-label="Admin navigation" style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+        <Link href="/dashboard/settings" className="side-settings-link">Settings &amp; roles</Link>
+        <nav className="nav" aria-label="Admin navigation">
           {links.map(([label, href]) => <Link href={href} key={href}>{label}</Link>)}
         </nav>
         <div className="side-foot"><strong>{displayName}</strong><br />{ctx.access.roles.join(" · ")}<br />Shared database console</div>
