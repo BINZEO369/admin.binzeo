@@ -49,6 +49,63 @@ const datasets = [
   ["Exceeded login limits", "login_limit_exceeded", ["id", "account_email", "account_key", "request_ip", "window_date", "account_attempts", "ip_attempts", "daily_limit", "blocked_count", "first_blocked_at", "last_blocked_at", "created_at", "updated_at"]],
 ] as const;
 
+/* ================= DATASET METADATA ================= */
+const DATASET_META: Record<string, { purpose: string; sensitive: boolean }> = {
+  user_contacts: { purpose: "Verified phone, email and alternate contact channels used for sign-in, alerts and account recovery.", sensitive: false },
+  user_addresses: { purpose: "Physical and service addresses on file, with geo-precision and source-of-truth context.", sensitive: false },
+  user_devices: { purpose: "Hardware and browsers this account has authenticated from. Trusted devices skip extra verification.", sensitive: false },
+  user_login_history: { purpose: "Every authentication attempt for this account — method, outcome, IP and geo-context.", sensitive: false },
+  user_activity_logs: { purpose: "In-product events tied to this user — actions they took inside the app.", sensitive: false },
+  user_auth_methods: { purpose: "Federated and local sign-in providers linked to this account, with last-use timeline.", sensitive: false },
+  user_verification_records: { purpose: "Identity and document verification attempts — type, provider, outcome and expiry.", sensitive: false },
+  user_passkeys: { purpose: "WebAuthn credential metadata (sign count, authenticator, backup flag). Private keys are never stored here.", sensitive: true },
+  user_two_factor_settings: { purpose: "Whether a second factor is enabled for this account and which method is active.", sensitive: true },
+  two_factor_authentication_events: { purpose: "Full lifecycle of 2FA OTP delivery and verification — sent, verified, expired or failed.", sensitive: true },
+  two_factor_challenges: { purpose: "Short-lived 2FA challenges. Codes and hashes are intentionally excluded.", sensitive: true },
+  email_verification_challenges: { purpose: "Email-verification challenges — creation, attempts, expiry and final outcome.", sensitive: true },
+  password_reset_challenges: { purpose: "Password-reset challenges and their results. Reset tokens and hashes are excluded.", sensitive: true },
+  password_change_events: { purpose: "Timeline of actual password updates plus notification delivery status.", sensitive: true },
+  welcome_email_deliveries: { purpose: "Delivery status of onboarding / welcome email — attempts, errors, provider message id.", sensitive: false },
+  user_birthdays: { purpose: "Birth date and derived age fields — drives age-based access rules and greetings.", sensitive: false },
+  user_sector_access: { purpose: "Which business sectors this user selected and their current access status.", sensitive: false },
+  profile_images: { purpose: "Current profile photo assets and their storage identifiers.", sensitive: false },
+  profile_deleted_images: { purpose: "Audit trail of profile photos removed by the user, with reason and timestamp.", sensitive: false },
+  login_attempt_limits: { purpose: "Rate-limit windows currently tracking this account or its IP addresses.", sensitive: true },
+  login_limit_exceeded: { purpose: "Times this account or IP hit the daily login limit — useful for spotting brute-force attempts.", sensitive: true },
+};
+
+/* ================= CATEGORIES ================= */
+type CategoryDef = {
+  id: string; letter: string; title: string; purpose: string; tables: readonly string[];
+};
+const CATEGORIES: CategoryDef[] = [
+  {
+    id: "identity", letter: "I", title: "Identity & Profile",
+    purpose: "The canonical picture of who this user is — their name, contacts, addresses, birthdays and photos.",
+    tables: ["__profile__", "user_contacts", "user_addresses", "user_birthdays", "profile_images", "profile_deleted_images"],
+  },
+  {
+    id: "security", letter: "S", title: "Authentication & Security",
+    purpose: "How this account signs in, what factors protect it and every credential lifecycle event.",
+    tables: ["user_auth_methods", "user_passkeys", "user_two_factor_settings", "two_factor_authentication_events", "two_factor_challenges", "email_verification_challenges", "password_reset_challenges", "password_change_events", "user_verification_records"],
+  },
+  {
+    id: "sessions", letter: "D", title: "Sessions & Devices",
+    purpose: "Where this account has been used from — hardware, browsers and every login attempt.",
+    tables: ["user_devices", "user_login_history"],
+  },
+  {
+    id: "abuse", letter: "R", title: "Rate Limiting & Abuse",
+    purpose: "Rate-limit state and lockout history that protect this account from brute-force attempts.",
+    tables: ["login_attempt_limits", "login_limit_exceeded"],
+  },
+  {
+    id: "activity", letter: "A", title: "Activity & Communications",
+    purpose: "What the user did inside the product and which outbound messages reached them.",
+    tables: ["user_activity_logs", "user_sector_access", "welcome_email_deliveries"],
+  },
+];
+
 /* ================= HELPERS ================= */
 const fmt = (n: number) => n.toLocaleString("en-US");
 const localKey = (d: Date) =>
@@ -88,6 +145,7 @@ const ANIM_CSS = `
   @keyframes bzRiseUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes bzGauge  { to { stroke-dashoffset: 0; } }
   @keyframes bzPulse  { 0%,100% { opacity: 1; } 50% { opacity: .28; } }
+  @keyframes bzRipple { 0%{ box-shadow: 0 0 0 0 rgba(10,10,10,.14);} 100%{ box-shadow: 0 0 0 14px rgba(10,10,10,0);} }
 
   .bz-line-path { stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: bzDraw 1.4s cubic-bezier(.4,0,.2,1) forwards; }
   .bz-spark-line { stroke-dasharray: 500; stroke-dashoffset: 500; animation: bzDraw 1s cubic-bezier(.4,0,.2,1) forwards; }
@@ -104,22 +162,27 @@ const ANIM_CSS = `
   .bz-pulse { animation: bzPulse 2.2s ease-in-out infinite; }
   .bz-card { transition: transform .22s cubic-bezier(.2,.7,.2,1), border-color .22s ease, box-shadow .22s ease; }
   .bz-card:hover { transform: translateY(-2px); border-color: ${T.black}; box-shadow: 0 14px 32px -22px rgba(0,0,0,.24); }
+  .bz-chip { transition: background .18s ease, color .18s ease, border-color .18s ease; }
+  .bz-chip:hover { background: ${T.black} !important; color: #fff !important; border-color: ${T.black} !important; }
+  .bz-anchor { scroll-margin-top: 24px; }
 
   .bz-grid-kpi { grid-template-columns: repeat(5,1fr); }
+  .bz-grid-snap { grid-template-columns: repeat(6,1fr); }
   .bz-grid-2 { grid-template-columns: 1.6fr 1fr; }
   .bz-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
-  .bz-grid-risk { grid-template-columns: 1fr 1fr; }
+  .bz-grid-insights { grid-template-columns: 1.2fr 1fr; }
   @media (max-width:1200px){
     .bz-grid-kpi{grid-template-columns:repeat(3,1fr)!important}
     .bz-grid-3{grid-template-columns:1fr 1fr!important}
+    .bz-grid-snap{grid-template-columns:repeat(3,1fr)!important}
   }
   @media (max-width:1100px){
     .bz-grid-kpi{grid-template-columns:repeat(2,1fr)!important}
     .bz-grid-2{grid-template-columns:1fr!important}
-    .bz-grid-risk{grid-template-columns:1fr!important}
+    .bz-grid-insights{grid-template-columns:1fr!important}
   }
   @media (max-width:640px){
-    .bz-grid-kpi,.bz-grid-3{grid-template-columns:1fr!important}
+    .bz-grid-kpi,.bz-grid-3,.bz-grid-snap{grid-template-columns:1fr!important}
   }
   @media (prefers-reduced-motion: reduce){
     .bz-line-path,.bz-spark-line,.bz-area-path,.bz-spark-area,.bz-point-dot,.bz-spark-dot,
@@ -156,7 +219,7 @@ function Sparkline({ data, w = 90, h = 30 }: { data: number[]; w?: number; h?: n
   );
 }
 
-/* ================= CHART: Area (animated) ================= */
+/* ================= CHART: Area ================= */
 function AreaChart({ data, labels, height = 220 }: { data: number[]; labels: string[]; height?: number }) {
   const w = 720, h = height;
   const pad = { t: 20, r: 16, b: 30, l: 40 };
@@ -240,7 +303,7 @@ function Donut({ segments, size = 180, centerLabel = "TOTAL", centerValue }: {
   );
 }
 
-/* ================= CHART: Heatmap (24h × 1 row) ================= */
+/* ================= CHART: Day Heatmap ================= */
 function DayHeatmap({ cells }: { cells: number[] }) {
   const cell = 22, gap = 4, topPad = 4;
   const cols = 24;
@@ -382,6 +445,87 @@ function RiskBar({ score, level }: { score: number; level: "good" | "warn" | "ba
   );
 }
 
+function SnapshotCard({ label, value, sub, delay = 0 }: { label: string; value: string; sub?: string; delay?: number }) {
+  return (
+    <div className="bz-fade-up" style={{
+      background: T.surface, border: `1px solid ${T.line}`, borderRadius: 12,
+      padding: "14px 16px", display: "flex", flexDirection: "column", gap: 6, minWidth: 0,
+      animationDelay: `${delay}s`,
+    }}>
+      <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: T.muted, fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: 15, fontWeight: 700, color: T.black, letterSpacing: "-0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={value}>{value}</span>
+      {sub && <span style={{ fontFamily: MONO, fontSize: 10.5, color: T.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sub}</span>}
+    </div>
+  );
+}
+
+function CategoryHeader({ letter, title, purpose, rows, tables, id }: {
+  letter: string; title: string; purpose: string; rows: number; tables: number; id: string;
+}) {
+  return (
+    <div id={`cat-${id}`} className="bz-anchor bz-fade-up" style={{
+      display: "flex", gap: 16, alignItems: "flex-start",
+      padding: "20px 22px", marginTop: 24, marginBottom: 14,
+      background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16,
+      animationDelay: ".02s",
+    }}>
+      <span style={{
+        width: 40, height: 40, borderRadius: 12, background: T.black, color: "#fff",
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        fontSize: 16, fontWeight: 700, letterSpacing: "-0.02em", flexShrink: 0,
+      }}>{letter}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 6 }}>
+          <h2 style={{ margin: 0, fontSize: "clamp(18px, 2vw, 22px)", fontWeight: 700, letterSpacing: "-0.02em", color: T.black }}>{title}</h2>
+          <span style={{ fontFamily: MONO, fontSize: 10.5, color: T.muted, border: `1px solid ${T.line}`, borderRadius: 999, padding: "3px 10px" }}>
+            {tables} sections · {fmt(rows)} rows
+          </span>
+        </div>
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: T.muted }}>{purpose}</p>
+      </div>
+    </div>
+  );
+}
+
+function SectionHeader({ index, title, count, sensitive, purpose }: {
+  index: string; title: string; count: number; sensitive: boolean; purpose: string;
+}) {
+  return (
+    <div style={{
+      padding: "14px 16px 12px", background: T.surface,
+      border: `1px solid ${T.line}`, borderBottom: "none",
+      borderRadius: "12px 12px 0 0", marginBottom: -1,
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <span style={{
+            fontFamily: MONO, fontSize: 10.5, fontWeight: 700,
+            color: T.faint, border: `1px solid ${T.line}`, borderRadius: 6,
+            padding: "2px 7px", flexShrink: 0,
+          }}>{index}</span>
+          <span style={{ fontSize: 13.5, fontWeight: 650, color: T.black, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {title}
+          </span>
+          <span style={{ fontFamily: MONO, fontSize: 11, color: T.muted, flexShrink: 0 }}>
+            {count} {count === 1 ? "row" : "rows"}
+          </span>
+        </div>
+        <span style={{
+          fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600,
+          color: sensitive ? "#fff" : T.black,
+          background: sensitive ? T.black : "#fff",
+          border: `1px solid ${T.black}`, borderRadius: 999, padding: "3px 9px", flexShrink: 0,
+        }}>
+          {sensitive ? "Protected" : "Standard"}
+        </span>
+      </div>
+      <p style={{ margin: "8px 0 0", fontSize: 12, lineHeight: 1.55, color: T.muted, maxWidth: 780 }}>
+        {purpose}
+      </p>
+    </div>
+  );
+}
+
 /* ================= PAGE ================= */
 export default async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
@@ -405,7 +549,7 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
   const profileRow = Object.fromEntries(profileFields.map((field) => [field, user[field]]));
   const title = user.display_name || user.binzeo_user_id || user.username || "User account";
 
-  /* -------- dataset slices -------- */
+  /* -------- slices -------- */
   const logins = dataByTable.get("user_login_history") ?? [];
   const activities = dataByTable.get("user_activity_logs") ?? [];
   const devices = dataByTable.get("user_devices") ?? [];
@@ -414,9 +558,11 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
   const twoFactor = dataByTable.get("user_two_factor_settings") ?? [];
   const contacts = dataByTable.get("user_contacts") ?? [];
   const limits = dataByTable.get("login_attempt_limits") ?? [];
-  const exceeded = dataByTable.get("login_limit_exceeded") ?? [];
   const passkeys = dataByTable.get("user_passkeys") ?? [];
   const birthdays = dataByTable.get("user_birthdays") ?? [];
+  const addresses = dataByTable.get("user_addresses") ?? [];
+  const sectorAccess = dataByTable.get("user_sector_access") ?? [];
+  const welcomeEmails = dataByTable.get("welcome_email_deliveries") ?? [];
 
   const totalLinked = rows.reduce((s, r) => s + r.length, 0);
 
@@ -428,7 +574,7 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
   }).length;
   const successRate = logins.length > 0 ? Math.round((loginSuccess / logins.length) * 100) : 0;
 
-  /* -------- 30-day trend from real login_at -------- */
+  /* -------- 30d trend -------- */
   const trendDays = 30;
   const dayKeys: string[] = [];
   const dayLabels: string[] = [];
@@ -446,7 +592,7 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
   });
   const loginTrend = dayKeys.map((k) => perDay.get(k) ?? 0);
 
-  /* -------- 7-day window for week bars -------- */
+  /* -------- 7d bars -------- */
   const weekKeys: string[] = [];
   const weekLabels: string[] = [];
   for (let i = 6; i >= 0; i--) {
@@ -456,7 +602,7 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
   }
   const weekBars = weekKeys.map((k) => perDay.get(k) ?? 0);
 
-  /* -------- 24h-of-day heatmap -------- */
+  /* -------- 24h heatmap -------- */
   const hourCells = Array(24).fill(0) as number[];
   logins.forEach((r) => {
     const ts = tsOf(r, "login_at", "created_at");
@@ -465,39 +611,29 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
   });
   const peakHour = hourCells.some((v) => v > 0) ? hourCells.indexOf(Math.max(...hourCells)) : null;
 
-  /* -------- device breakdown -------- */
+  /* -------- distributions -------- */
   const deviceMap = new Map<string, number>();
   devices.forEach((d) => {
     const k = String(d.device_type ?? d.operating_system ?? "unknown").trim() || "unknown";
     deviceMap.set(k, (deviceMap.get(k) ?? 0) + 1);
   });
-  const deviceSegments = Array.from(deviceMap.entries())
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value).slice(0, 5);
+  const deviceSegments = Array.from(deviceMap.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 5);
 
-  /* -------- auth method breakdown -------- */
   const authMap = new Map<string, number>();
   authMethods.forEach((a) => {
     const k = String(a.provider ?? a.auth_method ?? "unknown").trim() || "unknown";
     authMap.set(k, (authMap.get(k) ?? 0) + 1);
   });
-  const authSegments = Array.from(authMap.entries())
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value).slice(0, 5);
+  const authSegments = Array.from(authMap.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 5);
 
-  /* -------- trusted devices -------- */
+  /* -------- derived flags -------- */
   const trustedDevices = devices.filter((d) => d.is_trusted === true).length;
-
-  /* -------- verification status -------- */
+  const verifiedContacts = contacts.filter((c) => c.is_verified === true).length;
   const verifiedCount = verifications.filter((v) => {
     const s = String(v.verification_status ?? "").toLowerCase();
     return s.includes("verif") && !s.includes("un");
   }).length;
-
-  /* -------- 2FA -------- */
   const twoFactorEnabled = twoFactor.some((r) => r.enabled === true);
-
-  /* -------- lockouts -------- */
   const activeLockouts = limits.filter((r) => {
     const lu = r.lockout_until;
     if (!lu) return false;
@@ -515,8 +651,9 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
   const accountAgeDays = accountCreated
     ? Math.floor((Date.now() - new Date(String(accountCreated)).getTime()) / 86400000)
     : null;
+  const freshMinutes = lastActivity ? Math.floor((Date.now() - new Date(lastActivity).getTime()) / 60000) : Infinity;
 
-  /* -------- risk score (0-100, higher = safer) -------- */
+  /* -------- risk score -------- */
   let score = 100;
   if (!twoFactorEnabled) score -= 20;
   if (verifiedCount === 0) score -= 15;
@@ -527,22 +664,43 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
   score = Math.max(0, Math.min(100, score));
   const riskLevel: "good" | "warn" | "bad" = score >= 70 ? "good" : score >= 40 ? "warn" : "bad";
 
-  /* -------- merged recent feed -------- */
-  type Feed = { kind: string; ts: string; user_id?: string | null; label?: string | null };
+  /* -------- feed -------- */
+  type Feed = { kind: string; ts: string; label?: string | null };
   const feed: Feed[] = [
-    ...logins.map((r): Feed => ({
-      kind: "login",
-      ts: tsOf(r, "login_at", "created_at") ?? "",
-      label: String(r.login_method ?? r.login_status ?? ""),
-    })),
-    ...activities.map((r): Feed => ({
-      kind: "activity",
-      ts: tsOf(r, "created_at") ?? "",
-      label: String(r.activity_type ?? r.activity_description ?? ""),
-    })),
+    ...logins.map((r): Feed => ({ kind: "login", ts: tsOf(r, "login_at", "created_at") ?? "", label: String(r.login_method ?? r.login_status ?? "") })),
+    ...activities.map((r): Feed => ({ kind: "activity", ts: tsOf(r, "created_at") ?? "", label: String(r.activity_type ?? r.activity_description ?? "") })),
   ].filter((f) => f.ts).sort((a, b) => +new Date(b.ts) - +new Date(a.ts)).slice(0, 8);
 
-  /* -------- status helpers -------- */
+  /* -------- snapshot values -------- */
+  const primaryEmail = (
+    contacts.find((c) => String(c.contact_type ?? "").toLowerCase().includes("email") && c.is_primary === true)
+    ?? contacts.find((c) => String(c.contact_type ?? "").toLowerCase().includes("email"))
+  )?.contact_value as string | undefined;
+  const primaryPhone = (
+    contacts.find((c) => String(c.contact_type ?? "").toLowerCase().includes("phone") && c.is_primary === true)
+    ?? contacts.find((c) => String(c.contact_type ?? "").toLowerCase().includes("phone"))
+  )?.contact_value as string | undefined;
+  const primaryAddr = addresses[0];
+  const locationStr = primaryAddr
+    ? [primaryAddr.city, primaryAddr.country_code].filter(Boolean).join(", ") || "—"
+    : "—";
+  const birth = birthdays[0];
+  const birthStr = birth?.birth_date ? dayFmt(String(birth.birth_date)) : "—";
+  const ageStr = birth?.current_age ? `${birth.current_age} yrs` : "";
+
+  /* -------- insights -------- */
+  const insights: { label: string; value: string; tone: "ok" | "warn" | "bad" }[] = [];
+  if (accountAgeDays !== null) insights.push({ label: "Account age", value: `${accountAgeDays} days`, tone: accountAgeDays > 30 ? "ok" : "warn" });
+  if (lastActivity) insights.push({ label: "Last seen", value: ago(lastActivity), tone: freshMinutes < 1440 ? "ok" : freshMinutes < 10080 ? "warn" : "bad" });
+  insights.push({ label: "2FA", value: twoFactorEnabled ? "Enabled" : "Not enabled", tone: twoFactorEnabled ? "ok" : "warn" });
+  insights.push({ label: "Verified contacts", value: `${verifiedContacts} / ${contacts.length}`, tone: verifiedContacts > 0 ? "ok" : "warn" });
+  insights.push({ label: "Trusted devices", value: `${trustedDevices} / ${devices.length}`, tone: trustedDevices > 0 ? "ok" : "warn" });
+  if (peakHour !== null) insights.push({ label: "Peak hour", value: `${String(peakHour).padStart(2, "0")}:00`, tone: "ok" });
+  insights.push({ label: "Passkeys", value: `${passkeys.length}`, tone: passkeys.length > 0 ? "ok" : "warn" });
+  if (loginFailed > 0) insights.push({ label: "Failed logins", value: `${loginFailed}`, tone: loginFailed > loginSuccess ? "bad" : "warn" });
+  if (activeLockouts > 0) insights.push({ label: "Active lockouts", value: `${activeLockouts}`, tone: "bad" });
+
+  /* -------- status badge -------- */
   const isActive = (user.account_status ?? "").toLowerCase() === "active";
   const statusBadge = isActive ? { label: "Active", bg: T.black, fg: "#fff" } : { label: safeStr(user.account_status, "Unknown"), bg: "#fff", fg: T.black };
 
@@ -554,6 +712,17 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
     { label: "Auth methods", value: authMethods.length, detail: twoFactorEnabled ? "2FA enabled" : "2FA not enabled", spark: undefined },
     { label: "Verifications", value: verifiedCount, detail: `${verifications.length} attempts total`, spark: undefined },
   ];
+
+  /* -------- dataset helpers -------- */
+  const indexOfDataset = (tableName: string) => datasets.findIndex(([, t]) => t === tableName);
+  const rowsFor = (tableName: string): Row[] =>
+    tableName === "__profile__" ? [profileRow] : (dataByTable.get(tableName) ?? []);
+  const metaFor = (tableName: string) =>
+    tableName === "__profile__"
+      ? { purpose: "The complete profile record — identity, preferences, consent flags and account lifecycle fields.", sensitive: false }
+      : (DATASET_META[tableName] ?? { purpose: "", sensitive: false });
+
+  const grandSections = CATEGORIES.reduce((s, c) => s + c.tables.length, 0);
 
   return (
     <div style={{ background: T.canvas, minHeight: "100%", padding: "32px clamp(20px, 4vw, 48px) 80px", color: T.ink, fontFamily: SANS }}>
@@ -624,10 +793,28 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
         <AccountStatusActions userId={user.id} status={user.account_status} />
       </div>
 
+      {/* ============ ACCOUNT SNAPSHOT ============ */}
+      <section style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+          <h2 style={{ margin: 0, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 600, color: T.muted, fontFamily: MONO }}>
+            At a glance
+          </h2>
+          <span style={{ fontFamily: MONO, fontSize: 11.5, color: T.faint }}>derived from current profile & contacts</span>
+        </div>
+        <div className="bz-grid-snap" style={{ display: "grid", gap: 10 }}>
+          <SnapshotCard label="BINZEO ID" value={user.binzeo_user_id || "—"} delay={0.05} />
+          <SnapshotCard label="Username" value={user.username ? `@${user.username}` : "—"} delay={0.08} />
+          <SnapshotCard label="Primary email" value={primaryEmail || "—"} sub={verifiedContacts > 0 ? `${verifiedContacts} verified contact(s)` : "Not verified"} delay={0.11} />
+          <SnapshotCard label="Phone" value={primaryPhone || "—"} delay={0.14} />
+          <SnapshotCard label="Location" value={locationStr} sub={primaryAddr?.country_code ? String(primaryAddr.country_code) : undefined} delay={0.17} />
+          <SnapshotCard label="Birthday" value={birthStr} sub={ageStr || undefined} delay={0.2} />
+        </div>
+      </section>
+
       {/* ============ SECURITY NOTE ============ */}
       <div className="bz-fade-up" style={{
         padding: "14px 18px", border: `1px solid ${T.line}`, borderRadius: 12, background: T.surface,
-        marginBottom: 24, display: "flex", gap: 10, alignItems: "flex-start", animationDelay: ".12s",
+        marginBottom: 24, display: "flex", gap: 10, alignItems: "flex-start", animationDelay: ".22s",
       }}>
         <span style={{
           width: 20, height: 20, borderRadius: 6, background: T.black, color: "#fff",
@@ -728,8 +915,8 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
         </Panel>
       </section>
 
-      {/* ============ ROW 3: heatmap + feed ============ */}
-      <section className="bz-grid-2" style={{ display: "grid", gap: 16, marginBottom: 24 }}>
+      {/* ============ ROW 3: heatmap + insights ============ */}
+      <section className="bz-grid-2" style={{ display: "grid", gap: 16, marginBottom: 16 }}>
         <Panel eyebrow="Time-of-day pattern" title="Login distribution (24h)"
           delay={0.4}
           action={peakHour !== null ? (
@@ -753,7 +940,32 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
           )}
         </Panel>
 
-        <Panel eyebrow="Live feed" title="Recent events" delay={0.45}
+        <Panel eyebrow="Auto-generated" title="Signals at a glance" delay={0.45}>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {insights.map((ins, i) => {
+              const dot = ins.tone === "ok" ? T.black : ins.tone === "warn" ? T.gray700 : T.faint;
+              return (
+                <li key={ins.label} className="bz-fade-up" style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  gap: 10, padding: "10px 0",
+                  borderBottom: i < insights.length - 1 ? `1px solid ${T.line}` : "none",
+                  animationDelay: `${0.5 + i * 0.04}s`,
+                }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: 999, background: dot, flexShrink: 0 }} />
+                    <span style={{ fontFamily: MONO, fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>{ins.label}</span>
+                  </span>
+                  <span style={{ fontFamily: MONO, fontSize: 12.5, fontWeight: 700, color: T.black }}>{ins.value}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
+      </section>
+
+      {/* ============ LIVE FEED ============ */}
+      <section style={{ marginBottom: 32 }}>
+        <Panel eyebrow="Live feed" title="Recent events" delay={0.55}
           action={<span style={{ fontFamily: MONO, fontSize: 11, color: T.muted, border: `1px solid ${T.line}`, borderRadius: 999, padding: "4px 10px" }}>last {feed.length}</span>}>
           {feed.length === 0 ? (
             <div style={{ padding: 30, textAlign: "center", fontSize: 12.5, color: T.muted, fontFamily: MONO }}>No recent activity</div>
@@ -763,7 +975,7 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
                 <li key={i} className="bz-fade-up" style={{
                   display: "flex", alignItems: "center", gap: 10, padding: "10px 0",
                   borderBottom: i < feed.length - 1 ? `1px solid ${T.line}` : "none",
-                  animationDelay: `${0.5 + i * 0.05}s`,
+                  animationDelay: `${0.6 + i * 0.04}s`,
                 }}>
                   <span style={{ width: 6, height: 6, borderRadius: 999, background: e.kind === "login" ? T.black : T.gray700, flexShrink: 0 }} />
                   <span style={{ fontFamily: MONO, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: T.muted, minWidth: 54 }}>{e.kind}</span>
@@ -778,66 +990,107 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
         </Panel>
       </section>
 
-      {/* ============ DATASET SECTIONS ============ */}
-      <section style={{ marginTop: 40 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
+      {/* ============ SECTION NAVIGATOR ============ */}
+      <section style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
           <div>
             <p style={{ margin: 0, fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: T.muted, fontWeight: 600, fontFamily: MONO }}>
-              Linked data
+              Linked data · complete picture
             </p>
             <h2 style={{ margin: "6px 0 4px", fontSize: "clamp(22px, 2.6vw, 28px)", fontWeight: 700, letterSpacing: "-0.03em", color: T.black }}>
-              All user records
+              All records grouped by purpose
             </h2>
             <p style={{ margin: 0, fontSize: 13.5, color: T.muted }}>
-              {datasets.length + 1} sections · {fmt(totalLinked)} rows attached to this account
+              {grandSections} sections across {CATEGORIES.length} categories · {fmt(totalLinked)} rows attached to this account
             </p>
           </div>
           <span style={{ fontFamily: MONO, fontSize: 11.5, color: T.ink, border: `1px solid ${T.line}`, background: "#fff", borderRadius: 999, padding: "6px 12px" }}>
-            {fmt(totalLinked)} rows · {datasets.length + 1} sections
+            {fmt(totalLinked)} rows · {grandSections} sections
           </span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Profile section */}
-          <div className="bz-fade-up" style={{ animationDelay: ".5s" }}>
-            <SectionHeader index={1} title="Profile / all fields" count={1} sensitive={false} />
-            <UserDataSection
-              title="Profile / all fields"
-              description="The complete profile record, including preferences, consent and account lifecycle fields."
-              columns={profileFields}
-              rows={[profileRow]}
-            />
-          </div>
-
-          {datasets.map(([sectionTitle, table, columns], index) => {
-            const count = rows[index].length;
-            const isSensitive = table === "user_passkeys"
-              || table === "user_two_factor_settings"
-              || table === "two_factor_authentication_events"
-              || table === "two_factor_challenges"
-              || table === "email_verification_challenges"
-              || table === "password_reset_challenges"
-              || table === "password_change_events"
-              || table === "login_attempt_limits"
-              || table === "login_limit_exceeded";
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {CATEGORIES.map((c) => {
+            const count = c.tables.reduce((s, t) => s + rowsFor(t).length, 0);
             return (
-              <div key={sectionTitle} className="bz-fade-up" style={{ animationDelay: `${0.05 * Math.min(index, 12)}s` }}>
-                <SectionHeader index={index + 2} title={sectionTitle} count={count} sensitive={isSensitive} />
-                <UserDataSection
-                  title={sectionTitle}
-                  description={
-                    sectionTitle.includes("lifecycle") || sectionTitle.includes("limits")
-                      ? "Security lifecycle metadata and timestamps. Secret values are excluded."
-                      : undefined
-                  }
-                  columns={[...columns]}
-                  rows={rows[index]}
-                />
-              </div>
+              <a key={c.id} href={`#cat-${c.id}`} className="bz-chip" style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "7px 12px", border: `1px solid ${T.line}`, borderRadius: 999,
+                background: "#fff", color: T.black, textDecoration: "none",
+                fontFamily: MONO, fontSize: 11.5, fontWeight: 600,
+              }}>
+                <span style={{
+                  width: 18, height: 18, borderRadius: 6, background: T.black, color: "#fff",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 9.5, fontWeight: 700,
+                }}>{c.letter}</span>
+                <span>{c.title}</span>
+                <span style={{ color: T.faint, fontWeight: 500 }}>· {count}</span>
+              </a>
             );
           })}
         </div>
       </section>
+
+      {/* ============ DATA SECTIONS BY CATEGORY ============ */}
+      {totalLinked === 0 ? (
+        <div className="bz-fade-up" style={{
+          padding: "48px 24px", textAlign: "center", border: `1px dashed ${T.line}`,
+          borderRadius: 16, background: T.surface, animationDelay: ".3s",
+        }}>
+          <p style={{ margin: 0, fontSize: 13.5, color: T.muted, fontFamily: MONO }}>
+            No linked records yet. As this account becomes active, records will appear here grouped by purpose.
+          </p>
+        </div>
+      ) : (
+        CATEGORIES.map((cat) => {
+          const catRows = cat.tables.reduce((s, t) => s + rowsFor(t).length, 0);
+          let sectionCounter = 0;
+          return (
+            <section key={cat.id}>
+              <CategoryHeader
+                id={cat.id}
+                letter={cat.letter}
+                title={cat.title}
+                purpose={cat.purpose}
+                rows={catRows}
+                tables={cat.tables.length}
+              />
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {cat.tables.map((table) => {
+                  sectionCounter += 1;
+                  const sectionIndex = `${cat.letter}.${String(sectionCounter).padStart(2, "0")}`;
+                  const meta = metaFor(table);
+                  const data = rowsFor(table);
+                  const displayTitle = table === "__profile__"
+                    ? "Profile / all fields"
+                    : (datasets[indexOfDataset(table)]?.[0] ?? table);
+                  const columns = table === "__profile__"
+                    ? profileFields
+                    : [...((datasets[indexOfDataset(table)]?.[2] ?? []) as readonly string[])];
+                  return (
+                    <div key={table} className="bz-fade-up" style={{ animationDelay: `${0.05 * Math.min(sectionCounter, 10)}s` }}>
+                      <SectionHeader
+                        index={sectionIndex}
+                        title={displayTitle}
+                        count={data.length}
+                        sensitive={meta.sensitive}
+                        purpose={meta.purpose}
+                      />
+                      <UserDataSection
+                        title={displayTitle}
+                        description={undefined}
+                        columns={columns}
+                        rows={data}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })
+      )}
 
       {/* ============ FOOTER ============ */}
       <footer style={{
@@ -845,50 +1098,12 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
         display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center",
         fontFamily: MONO, fontSize: 11, color: T.faint, letterSpacing: "0.04em",
       }}>
-        <span>BINZEO ADMIN CONSOLE — USER DETAIL v2.0</span>
+        <span>BINZEO ADMIN CONSOLE — USER DETAIL v3.0</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
           <span className="bz-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: T.black }} />
-          LIVE · {fmt(totalLinked)} RECORDS
+          LIVE · {fmt(totalLinked)} RECORDS · {grandSections} SECTIONS
         </span>
       </footer>
-    </div>
-  );
-}
-
-/* ================= SECTION HEADER ================= */
-function SectionHeader({ index, title, count, sensitive }: {
-  index: number; title: string; count: number; sensitive: boolean;
-}) {
-  return (
-    <div style={{
-      display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-      padding: "10px 14px", background: T.surface, border: `1px solid ${T.line}`,
-      borderRadius: "12px 12px 0 0", borderBottom: "none",
-      marginBottom: -1,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-        <span style={{
-          fontFamily: MONO, fontSize: 10.5, fontWeight: 700,
-          color: T.faint, border: `1px solid ${T.line}`, borderRadius: 6,
-          padding: "2px 7px", flexShrink: 0,
-        }}>
-          {String(index).padStart(2, "0")}
-        </span>
-        <span style={{ fontSize: 13, fontWeight: 650, color: T.black, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {title}
-        </span>
-        <span style={{ fontFamily: MONO, fontSize: 11, color: T.muted, flexShrink: 0 }}>
-          {count} {count === 1 ? "row" : "rows"}
-        </span>
-      </div>
-      <span style={{
-        fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600,
-        color: sensitive ? "#fff" : T.black,
-        background: sensitive ? T.black : "#fff",
-        border: `1px solid ${T.black}`, borderRadius: 999, padding: "3px 9px", flexShrink: 0,
-      }}>
-        {sensitive ? "Protected" : "Standard"}
-      </span>
     </div>
   );
 }
