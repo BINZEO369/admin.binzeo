@@ -3,9 +3,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import EmailRecipientSelector, { type EmailRecipient } from "@/components/EmailRecipientSelector";
 
 type OccasionTemplate = { id: string; name: string; subject: string; headline: string; message: string; theme: string };
-type Recipient = { id: string; email: string; display_name: string | null };
+type Recipient = EmailRecipient & { email: string };
 type Delivery = {
   id: string;
   user_id: string | null;
@@ -32,11 +33,14 @@ export default function OccasionEmailsPage() {
   const [templates, setTemplates] = useState<OccasionTemplate[]>([]);
   const [users, setUsers] = useState<Recipient[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [audienceTruncated, setAudienceTruncated] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [templateId, setTemplateId] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("Loading occasion templates, eligible users and send history…");
   const [loading, setLoading] = useState(true);
   const [sendingUserId, setSendingUserId] = useState<string | null>(null);
+  const [bulkSending, setBulkSending] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -51,6 +55,7 @@ export default function OccasionEmailsPage() {
       const nextTemplates = data.templates ?? [];
       setTemplates(nextTemplates);
       setUsers(data.users ?? []);
+      setAudienceTruncated(Boolean(data.audience_truncated));
       setDeliveries(data.deliveries ?? []);
       setTemplateId((current: string) => current && nextTemplates.some((template: OccasionTemplate) => template.id === current) ? current : nextTemplates[0]?.id ?? "");
       setStatus("");
@@ -115,6 +120,47 @@ export default function OccasionEmailsPage() {
     }
   }
 
+  async function sendBulk() {
+    const template = templates.find((item) => item.id === templateId);
+    const selected = users.filter((user) => selectedUserIds.includes(user.id));
+    if (!template) { setStatus("Save an Occasion-type template first."); return; }
+    if (!selected.length) { setStatus("Select at least one eligible user."); return; }
+    if (!window.confirm(`Send “${template.name}” to ${selected.length} selected user(s), one email per person? Each delivery will be individually logged.`)) return;
+
+    setBulkSending(true);
+    setStatus("");
+    let sent = 0;
+    let failed = 0;
+    let stoppedOnUnknownResult = false;
+    try {
+      for (let index = 0; index < selected.length; index += 1) {
+        const user = selected[index];
+        setStatus(`Sending ${index + 1} of ${selected.length} · ${sent} sent so far…`);
+        try {
+          const response = await fetch("/api/admin/occasion-emails", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: user.id, template_id: template.id }),
+          });
+          const json = await response.json();
+          const data = json.data ?? json;
+          if (response.ok && data.sent) sent += 1;
+          else failed += 1;
+          setSelectedUserIds((current) => current.filter((id) => id !== user.id));
+        } catch {
+          stoppedOnUnknownResult = true;
+          break;
+        }
+      }
+      await load();
+      setStatus(stoppedOnUnknownResult
+        ? `Stopped after ${sent} sent and ${failed} failed; the current result is unknown. Check the delivery history before retrying the remaining selection.`
+        : `Occasion emails complete: ${sent} sent, ${failed} failed. Each attempt is recorded in the delivery history.`);
+    } finally {
+      setBulkSending(false);
+    }
+  }
+
   const selectedTemplate = templates.find((template) => template.id === templateId);
 
   return (
@@ -145,6 +191,13 @@ export default function OccasionEmailsPage() {
         {!templates.length && !loading && <p className="protected-note">No saved Occasion templates yet. <Link href="/dashboard/templates">Create one from the wish-title presets</Link>, complete its message, and save it first.</p>}
       </section>
 
+      <section className="card occasion-audience-card" style={{ marginBottom: 18 }}>
+        <div className="section-head"><div><p className="eyebrow">Bulk occasion sender</p><h3>Filter and select recipients</h3></div><button className="btn" type="button" disabled={!selectedUserIds.length || !selectedTemplate || bulkSending || sendingUserId !== null} onClick={() => void sendBulk()}>{bulkSending ? "Sending…" : `Send to ${selectedUserIds.length} selected`}</button></div>
+        <p className="muted">Filter by age, country, language or account-creation date. A single confirmation starts individual sends; each user’s marketing consent is checked again and each attempt gets its own delivery record.</p>
+        {audienceTruncated && <p className="protected-note">The eligible audience reached the current 1,000-profile list limit; only the first 1,000 are shown.</p>}
+        <EmailRecipientSelector users={users} selectedIds={selectedUserIds} onSelectedIdsChange={setSelectedUserIds} disabled={loading || bulkSending || sendingUserId !== null} />
+      </section>
+
       <section className="card" style={{ marginBottom: 18 }}>
         <div className="section-head">
           <div><p className="eyebrow">Eligible recipients</p><h3>User list · {visibleUsers.length}</h3></div>
@@ -161,7 +214,7 @@ export default function OccasionEmailsPage() {
                   <td>{user.email}</td>
                   <td>{last ? <span className={statusClass(last.status)}>{last.status}</span> : "Not sent"}</td>
                   <td>{formatDate(last?.sent_at ?? last?.created_at ?? null)}</td>
-                  <td><button className="btn" type="button" disabled={!selectedTemplate || sendingUserId !== null} onClick={() => void sendToUser(user)}>{sendingUserId === user.id ? "Sending…" : last?.status === "sent" ? "Send again" : "Send to this user"}</button></td>
+                  <td><button className="btn" type="button" disabled={!selectedTemplate || sendingUserId !== null || bulkSending} onClick={() => void sendToUser(user)}>{sendingUserId === user.id ? "Sending…" : last?.status === "sent" ? "Send again" : "Send to this user"}</button></td>
                 </tr>;
               })}
               {!visibleUsers.length && <tr><td colSpan={5}>{loading ? "Loading users…" : "No eligible users match your search."}</td></tr>}
