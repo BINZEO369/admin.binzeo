@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getAdminDataClient, requireAdminPermission } from "@/lib/admin";
 import { getTableDefinition } from "@/lib/data-tables";
 import DataTable from "@/components/DataTable";
 
@@ -17,7 +16,7 @@ export default async function DataTablePage({
   params: Promise<{ table: string }>;
   searchParams: Promise<SearchParams>;
 }) {
-  await requireAdmin();
+  const context = await requireAdminPermission("database.read");
   const { table: slug } = await params;
   const definition = getTableDefinition(slug);
   if (!definition) notFound();
@@ -26,7 +25,7 @@ export default async function DataTablePage({
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
-  const db = await createClient();
+  const db = await getAdminDataClient(context.access);
   const result = await db
     .from(definition.table)
     .select(definition.columns.join(", "), { count: "exact" })

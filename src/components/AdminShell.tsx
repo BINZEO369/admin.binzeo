@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { requireAdmin } from "@/lib/admin";
+import { hasAdminPermission, requireAdmin } from "@/lib/admin";
+import { DATA_TABLES } from "@/lib/data-tables";
 import LogoutButton from "@/components/LogoutButton";
 
-const links = [
+const coreLinks = [
   ["Overview", "/dashboard"],
   ["Active users", "/dashboard/users"],
   ["Suspended users", "/dashboard/suspended"],
@@ -11,32 +12,32 @@ const links = [
   ["Occasion email sender", "/dashboard/occasion-emails"],
   ["Email templates", "/dashboard/templates"],
   ["User birthdays", "/dashboard/birthdays"],
-  ["Profiles", "/dashboard/profiles"],
-  ["Contacts", "/dashboard/user-contacts"],
-  ["Addresses", "/dashboard/user-addresses"],
-  ["Sectors", "/dashboard/sectors"],
-  ["Sector access", "/dashboard/user-sector-access"],
-  ["Devices", "/dashboard/user-devices"],
-  ["Login history", "/dashboard/user-login-history"],
-  ["Activity logs", "/dashboard/user-activity-logs"],
-  ["Auth methods", "/dashboard/user-auth-methods"],
-  ["Verification", "/dashboard/user-verification-records"],
-  ["Passkeys", "/dashboard/user-passkeys"],
-  ["ID history", "/dashboard/profile-id-history"],
-  ["Admin access", "/dashboard/admin-access"],
-  ["Admin audit", "/dashboard/admin-activity-logs"],
-  ["Security view", "/dashboard/security"],
-  ["Settings", "/dashboard/settings"],
+  ["Login history", "/dashboard/security"],
+  ["Admin audit", "/dashboard/audit"],
+  ["Settings & roles", "/dashboard/settings"],
 ];
 
 export default async function AdminShell({ children }: { children: React.ReactNode }) {
   const ctx = await requireAdmin();
   const displayName = typeof ctx.profile?.display_name === "string" ? ctx.profile.display_name : ctx.user.email;
+  const visibleCoreLinks = coreLinks.filter(([label]) => {
+    if (label === "Active users" || label === "Suspended users") return hasAdminPermission(ctx.access, "users.read");
+    if (label === "Deleted emails") return hasAdminPermission(ctx.access, "auth.read");
+    if (label === "Admin audit") return hasAdminPermission(ctx.access, "audit.read");
+    if (label === "Marketing emails" || label === "Occasion email sender" || label === "Email templates" || label === "User birthdays") return hasAdminPermission(ctx.access, "marketing.send");
+    if (label === "Login history") return hasAdminPermission(ctx.access, "auth.read");
+    return true;
+  });
+  const links = [
+    ...visibleCoreLinks,
+    ...(hasAdminPermission(ctx.access, "database.read") ? DATA_TABLES.map((item) => [item.title, `/dashboard/${item.slug}`] as const) : []),
+    ...(hasAdminPermission(ctx.access, "auth.read") ? [["Authentication accounts", "/dashboard/auth-users"] as const] : []),
+  ];
   return (
     <div className="shell">
       <aside className="side">
         <div className="brand"><span className="brand-mark">B</span><span>BINZEO Admin</span></div>
-        <nav className="nav" aria-label="Admin navigation">
+        <nav className="nav" aria-label="Admin navigation" style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
           {links.map(([label, href]) => <Link href={href} key={href}>{label}</Link>)}
         </nav>
         <div className="side-foot"><strong>{displayName}</strong><br />{ctx.access.roles.join(" · ")}<br />Shared database console</div>

@@ -1,10 +1,9 @@
-import { requireAdmin } from "@/lib/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getAdminDataClient, requireAdmin } from "@/lib/admin";
 import AdminAssignment from "@/components/AdminAssignment";
 
 export default async function SettingsPage() {
   const ctx = await requireAdmin();
-  const db = await createClient();
+  const db = await getAdminDataClient(ctx.access);
   const [{ data: sectors }, { data: countries }] = await Promise.all([
     db.from("sectors").select("sector_code,sector_name,is_active,created_at").order("sector_name").limit(100),
     db.from("countries").select("country_code,country_name,phone_code,is_active").order("country_name").limit(250),

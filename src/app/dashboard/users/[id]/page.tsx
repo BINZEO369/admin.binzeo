@@ -2,8 +2,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { requireAdmin } from "@/lib/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getAdminDataClient, requireAdminPermission } from "@/lib/admin";
 import UserDataSection from "@/components/UserDataSection";
 import AccountStatusActions from "@/components/AccountStatusActions";
 
@@ -384,9 +383,9 @@ function RiskBar({ score, level }: { score: number; level: "good" | "warn" | "ba
 
 /* ================= PAGE ================= */
 export default async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  const context = await requireAdminPermission("users.read");
   const { id } = await params;
-  const db = await createClient();
+  const db = await getAdminDataClient(context.access);
 
   const { data: profile, error } = await db.from("profiles").select("*").eq("id", id).maybeSingle();
   if (error || !profile) notFound();
