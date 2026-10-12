@@ -122,6 +122,13 @@ button, input { font: inherit; }
 .team-option { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 12px; }
 .recipient-picker { display: grid; gap: 8px; max-height: 280px; margin-top: 8px; overflow-y: auto; padding-right: 3px; }
 .recipient-picker .team-option { align-items: flex-start; }
+.saved-template-row { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: flex; gap: 10px; justify-content: space-between; padding: 10px; }
+.saved-template-info { display: grid; gap: 4px; min-width: 0; }
+.saved-template-info strong { font-size: 12px; overflow-wrap: anywhere; }
+.saved-template-info .muted { font-size: 10px; }
+.saved-template-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+.template-delete-button { background: #fff5f5; border-color: #e4b7b7; color: #8d2020; }
+.template-delete-button:hover:not(:disabled) { background: #ffe8e8; border-color: #c97979; }
 .wish-presets-grid { display: grid; gap: 8px; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; margin: 14px 0 0; padding: 0; }
 .wish-presets-grid li { min-width: 0; }
 .wish-preset-button { align-items: flex-start; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; color: var(--ink); cursor: pointer; display: flex; font-size: 12px; gap: 10px; line-height: 1.45; min-height: 48px; padding: 10px 12px; text-align: left; transition: background .16s ease, border-color .16s ease, box-shadow .16s ease; width: 100%; }
@@ -202,6 +209,9 @@ button, input { font: inherit; }
   .user-hero { align-items: flex-start; flex-direction: column; padding: 18px; }
   .user-hero-status { text-align: left; }
   .marketing-grid, .two-col { grid-template-columns: 1fr; }
+  .saved-template-row { align-items: flex-start; flex-direction: column; }
+  .saved-template-actions { width: 100%; }
+  .saved-template-actions .btn { flex: 1; }
   .wish-presets-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .content-block-button-fields { grid-template-columns: 1fr; }
   .content-block-image-fields { grid-template-columns: 1fr; }

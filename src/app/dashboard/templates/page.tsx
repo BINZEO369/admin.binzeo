@@ -160,6 +160,7 @@ export default function TemplatesPage() {
   const [form, setForm] = useState<Template>(blank);
   const [status, setStatus] = useState("Loading saved templates…");
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [previewHtml, setPreviewHtml] = useState("");
   const [selectedWishTitle, setSelectedWishTitle] = useState("");
@@ -331,6 +332,32 @@ export default function TemplatesPage() {
     }
   }
 
+  async function deleteTemplate(template: Template) {
+    if (!template.id || !window.confirm(`Permanently delete “${template.name}”? Past campaign and delivery records will remain, but their link to this template will be cleared.`)) return;
+    setDeletingId(template.id);
+    try {
+      const response = await fetch(`/api/admin/email-templates?id=${encodeURIComponent(template.id)}`, { method: "DELETE" });
+      const json = await response.json();
+      if (!response.ok) {
+        setStatus(json.error?.message ?? "Template could not be deleted.");
+        return;
+      }
+      if (form.id === template.id) {
+        setForm({ ...blank, content_blocks: [] });
+        setSelectedWishTitle("");
+        setPreviewHtml("");
+      }
+      const refreshed = await load(false);
+      setStatus(refreshed
+        ? `Deleted “${template.name}”. Past delivery records were retained.`
+        : `Deleted “${template.name}”, but the saved-template list could not refresh. Reload the page.`);
+    } catch {
+      setStatus("Could not confirm whether deletion completed. Reload the saved-template list before trying again.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   const headlineCount = form.content_blocks.filter((block) => block.type === "headline").length;
   const messageCount = form.content_blocks.filter((block) => block.type === "message").length;
   const imageCount = form.content_blocks.filter((block) => block.type === "image").length;
@@ -367,9 +394,16 @@ export default function TemplatesPage() {
           <p className="eyebrow">Saved templates</p>
           <div className="recipient-picker">
             {templates.map((template) => (
-              <button className="team-option" style={{ textAlign: "left", width: "100%" }} type="button" key={template.id} onClick={() => edit(template)}>
-                <strong>{template.name}</strong><br /><span className="muted">{template.template_type} · {template.theme} · {template.updated_at ? new Date(template.updated_at).toLocaleString() : ""}</span>
-              </button>
+              <div className="saved-template-row" key={template.id}>
+                <div className="saved-template-info">
+                  <strong>{template.name}</strong>
+                  <span className="muted">{template.template_type} · {template.theme} · {template.updated_at ? new Date(template.updated_at).toLocaleString() : ""}</span>
+                </div>
+                <div className="saved-template-actions">
+                  <button className="btn light" type="button" disabled={Boolean(deletingId) || saving || previewing} onClick={() => edit(template)}>Edit</button>
+                  <button className="btn template-delete-button" type="button" disabled={Boolean(deletingId) || saving || previewing} onClick={() => void deleteTemplate(template)}>{deletingId === template.id ? "Deleting…" : "Delete"}</button>
+                </div>
+              </div>
             ))}
             {!templates.length && <span className="muted">No templates saved yet.</span>}
           </div>
