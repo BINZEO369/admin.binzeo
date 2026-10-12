@@ -36,6 +36,7 @@ const ANIM_CSS = `
   @keyframes bzSpin   { to { transform: rotate(360deg); } }
   @keyframes bzStripe { from { background-position: 0 0; } to { background-position: 40px 0; } }
   @keyframes bzModalIn { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+  @keyframes bzMenuIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
   .bz-spark-line { stroke-dasharray: 500; stroke-dashoffset: 500; animation: bzDraw 1s cubic-bezier(.4,0,.2,1) forwards; }
   .bz-spark-area { opacity: 0; animation: bzFadeIn .7s ease-out .3s forwards; }
@@ -46,6 +47,7 @@ const ANIM_CSS = `
   .bz-number { display: inline-block; opacity: 0; animation: bzRiseUp .5s ease-out forwards; }
   .bz-toast-in { animation: bzSlideInRight .35s cubic-bezier(.2,.7,.2,1) forwards; }
   .bz-modal-in { animation: bzModalIn .3s cubic-bezier(.2,.7,.2,1) forwards; }
+  .bz-menu-in { animation: bzMenuIn .18s cubic-bezier(.2,.7,.2,1) forwards; }
   .bz-pulse { animation: bzPulse 2.2s ease-in-out infinite; }
   .bz-spin { animation: bzSpin .9s linear infinite; }
 
@@ -62,6 +64,12 @@ const ANIM_CSS = `
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%23737373' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 14px center; padding-right: 34px !important; cursor: pointer; }
   .bz-select:focus { outline: none; border-color: ${T.black} !important; box-shadow: 0 0 0 3px rgba(10,10,10,.08); }
+
+  /* custom dropdown option */
+  .bz-opt { background: transparent; color: ${T.ink}; transition: background .15s ease, color .15s ease; }
+  .bz-opt:hover { background: ${T.soft}; }
+  .bz-opt.on { background: ${T.black}; color: #fff; }
+  .bz-opt.on:hover { background: ${T.black}; }
 
   .bz-btn { transition: background .18s ease, color .18s ease, border-color .18s ease, transform .12s ease; cursor: pointer; }
   .bz-btn:hover:not(:disabled) { background: ${T.gray700} !important; border-color: ${T.gray700} !important; transform: translateY(-1px); }
@@ -88,12 +96,152 @@ const ANIM_CSS = `
   @media (max-width:1100px){ .bz-grid-2{grid-template-columns:1fr!important} }
   @media (max-width:640px){ .bz-grid-kpi,.bz-grid-3,.bz-grid-filter{grid-template-columns:1fr!important} }
   @media (prefers-reduced-motion: reduce){
-    .bz-spark-line,.bz-spark-area,.bz-spark-dot,.bz-hbar,.bz-donut-seg,.bz-fade-up,.bz-number,.bz-toast-in,.bz-modal-in{
+    .bz-spark-line,.bz-spark-area,.bz-spark-dot,.bz-hbar,.bz-donut-seg,.bz-fade-up,.bz-number,.bz-toast-in,.bz-modal-in,.bz-menu-in{
       animation: none !important; opacity: 1 !important; transform: none !important; stroke-dashoffset: 0 !important;
     }
     .bz-progress-fill { animation: none !important; }
   }
 `;
+
+/* ================= UI: Custom Select ================= */
+function CustomSelect({
+  value, onChange, options, placeholder, disabled = false, compact = false, ariaLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  disabled?: boolean;
+  compact?: boolean;
+  ariaLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onClickOutside);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const current = options.find((o) => o.value === value);
+  const displayLabel = current ? current.label : (placeholder ?? "—");
+  const hasValue = Boolean(current && current.value !== "");
+
+  const pad = compact ? "10px 14px" : "12px 14px";
+  const fs = compact ? 12.5 : 13.5;
+
+  return (
+    <div ref={ref} style={{ position: "relative", width: "100%" }}>
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          padding: pad,
+          border: `1px solid ${open ? T.black : T.line}`,
+          borderRadius: 10,
+          background: "#fff",
+          color: hasValue ? T.black : T.muted,
+          fontFamily: SANS,
+          fontSize: fs,
+          textAlign: "left",
+          cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.45 : 1,
+          transition: "border-color .18s ease, box-shadow .18s ease",
+          boxShadow: open ? "0 0 0 3px rgba(10,10,10,.08)" : "none",
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+          {displayLabel}
+        </span>
+        <svg
+          width="12" height="8" viewBox="0 0 12 8"
+          style={{ flexShrink: 0, transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s ease" }}
+        >
+          <path fill="none" stroke={T.muted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M1 1.5l5 5 5-5" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          className="bz-menu-in"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: 0,
+            right: 0,
+            zIndex: 50,
+            background: "#fff",
+            border: `1px solid ${T.black}`,
+            borderRadius: 12,
+            boxShadow: "0 18px 40px -22px rgba(0,0,0,.28)",
+            maxHeight: 300,
+            overflowY: "auto",
+            padding: 6,
+          }}
+        >
+          {options.length === 0 ? (
+            <div style={{ padding: "10px 12px", fontFamily: MONO, fontSize: 12, color: T.muted }}>
+              No options
+            </div>
+          ) : (
+            options.map((opt) => {
+              const selected = opt.value === value;
+              return (
+                <button
+                  key={opt.value || "__empty__"}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => { onChange(opt.value); setOpen(false); }}
+                  className={`bz-opt ${selected ? "on" : ""}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    width: "100%",
+                    padding: "10px 12px",
+                    border: "none",
+                    borderRadius: 8,
+                    fontFamily: SANS,
+                    fontSize: 13,
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontWeight: selected ? 600 : 500,
+                  }}
+                >
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+                    {opt.label}
+                  </span>
+                  {selected && <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700 }}>✓</span>}
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ================= CHART: Sparkline ================= */
 function Sparkline({ data, w = 90, h = 30 }: { data: number[]; w?: number; h?: number }) {
@@ -766,6 +914,23 @@ export default function MarketingPage() {
     { key: "clear", label: "Clear", apply: () => setSelectedUsers([]), disabled: working || selectedUsers.length === 0 },
   ];
 
+  /* ============ custom-select option builders (only added lines) ============ */
+  const templateSelectOptions = [
+    { value: "", label: "Select a saved template" },
+    ...templates.map((template) => ({
+      value: template.id,
+      label: `${template.name} · ${template.template_type} · ${template.theme}`,
+    })),
+  ];
+  const countrySelectOptions = [
+    { value: "", label: "All countries" },
+    ...countryOptions.map((c) => ({ value: c.label, label: `${c.label} · ${c.value}` })),
+  ];
+  const languageSelectOptions = [
+    { value: "", label: "All languages" },
+    ...languageOptions.map((l) => ({ value: l.label, label: `${l.label.toUpperCase()} · ${l.value}` })),
+  ];
+
   return (
     <div style={{ background: T.canvas, minHeight: "100%", padding: "32px clamp(20px, 4vw, 48px) 160px", color: T.ink, fontFamily: SANS }}>
       <style>{ANIM_CSS}</style>
@@ -897,21 +1062,13 @@ export default function MarketingPage() {
               <label style={{ fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: T.muted, fontWeight: 600 }}>
                 Saved template
               </label>
-              <select className="bz-select" value={templateId}
-                onChange={(event) => setTemplateId(event.target.value)}
+              <CustomSelect
+                value={templateId}
+                onChange={setTemplateId}
+                options={templateSelectOptions}
                 disabled={working || loading}
-                style={{
-                  width: "100%", padding: "12px 14px", fontSize: 13.5,
-                  border: `1px solid ${T.line}`, borderRadius: 10,
-                  background: "#fff", color: T.black, fontFamily: SANS,
-                }}>
-                <option value="">Select a saved template</option>
-                {templates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name} · {template.template_type} · {template.theme}
-                  </option>
-                ))}
-              </select>
+                ariaLabel="Saved template"
+              />
               <TemplateInline template={selectedTemplate} onOpen={() => selectedTemplate && setPreviewOpen(true)} />
             </div>
 
@@ -1013,30 +1170,26 @@ export default function MarketingPage() {
             <div className="bz-grid-filter" style={{ display: "grid", gap: 10, marginBottom: 6 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: T.muted, fontWeight: 600 }}>Country</label>
-                <select className="bz-select" value={filterCountry} onChange={(e) => setFilterCountry(e.target.value)} disabled={working}
-                  style={{
-                    padding: "10px 14px", fontSize: 12.5, border: `1px solid ${T.line}`,
-                    borderRadius: 10, background: "#fff", color: T.black, fontFamily: SANS,
-                  }}>
-                  <option value="">All countries</option>
-                  {countryOptions.map((c) => (
-                    <option key={c.label} value={c.label}>{c.label} · {c.value}</option>
-                  ))}
-                </select>
+                <CustomSelect
+                  value={filterCountry}
+                  onChange={setFilterCountry}
+                  options={countrySelectOptions}
+                  disabled={working}
+                  compact
+                  ariaLabel="Country filter"
+                />
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: T.muted, fontWeight: 600 }}>Language</label>
-                <select className="bz-select" value={filterLanguage} onChange={(e) => setFilterLanguage(e.target.value)} disabled={working}
-                  style={{
-                    padding: "10px 14px", fontSize: 12.5, border: `1px solid ${T.line}`,
-                    borderRadius: 10, background: "#fff", color: T.black, fontFamily: SANS,
-                  }}>
-                  <option value="">All languages</option>
-                  {languageOptions.map((l) => (
-                    <option key={l.label} value={l.label}>{l.label.toUpperCase()} · {l.value}</option>
-                  ))}
-                </select>
+                <CustomSelect
+                  value={filterLanguage}
+                  onChange={setFilterLanguage}
+                  options={languageSelectOptions}
+                  disabled={working}
+                  compact
+                  ariaLabel="Language filter"
+                />
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
