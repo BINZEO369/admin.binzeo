@@ -75,7 +75,9 @@ export default function AdminAssignment() {
   function startEdit(assignment: Assignment) {
     setSelected(assignment.user_id);
     setRoles(assignment.roles ?? []);
-    setPermissions(assignment.permissions ?? []);
+    setPermissions(assignment.roles?.includes("super_admin")
+      ? defaultPermissionsForRoles(["super_admin"])
+      : (assignment.permissions ?? []).filter((permission) => ADMIN_PERMISSION_OPTIONS.some((option) => option.id === permission)));
     setIsActive(assignment.is_active);
     setNotice(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -154,7 +156,7 @@ export default function AdminAssignment() {
           const candidate = candidateById.get(assignment.user_id);
           return <article className="card" key={assignment.user_id} style={{ boxShadow: "none", padding: 13 }}>
             <div className="section-head" style={{ marginBottom: 8 }}><div><strong>{candidate?.email ?? candidate?.display_name ?? assignment.user_id}</strong><p className="muted" style={{ margin: "4px 0" }}>{candidate?.display_name ?? candidate?.username ?? candidate?.binzeo_user_id ?? assignment.user_id}</p></div><span className={`badge ${assignment.is_active ? "good" : "warn"}`}>{assignment.is_active ? "Active" : "Inactive"}</span></div>
-            <p style={{ margin: "5px 0" }}><strong>Roles:</strong> {assignment.roles?.join(", ") || "—"}</p><p className="muted" style={{ margin: "5px 0", fontSize: 12 }}><strong>Permissions:</strong> {assignment.permissions?.join(", ") || "none"}</p>
+            <p style={{ margin: "5px 0" }}><strong>Roles:</strong> {assignment.roles?.join(", ") || "—"}</p><p className="muted" style={{ margin: "5px 0", fontSize: 12 }}><strong>Permissions:</strong> {assignment.roles?.includes("super_admin") ? "All current permissions (automatic)" : assignment.permissions?.filter((permission) => ADMIN_PERMISSION_OPTIONS.some((option) => option.id === permission)).join(", ") || "none"}</p>
             <button className="btn light" type="button" onClick={() => startEdit(assignment)}>Edit access</button>
           </article>;
         })}</div>}
