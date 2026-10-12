@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { requireAdmin } from "@/lib/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getAdminDataClient, requireAdmin } from "@/lib/admin";
 import { DATA_TABLES } from "@/lib/data-tables";
 
 /* ================= TOKENS ================= */
@@ -494,10 +493,11 @@ export default async function Dashboard({
 }: {
   searchParams?: Promise<{ range?: string }> | { range?: string };
 }) {
-  await requireAdmin();
-  const db = await createClient();
+  const context = await requireAdmin();
+  const db = await getAdminDataClient(context.access);
 
   const sp = await Promise.resolve(searchParams ?? {});
+  const canReadDatabase = context.access.roles.includes("super_admin") || context.access.permissions.includes("database.read");
   const rangeKey: RangeKey = (["7d", "30d", "90d"].includes(sp.range ?? "") ? sp.range : "7d") as RangeKey;
   const cfg = RANGE_CFG[rangeKey];
 
@@ -930,7 +930,7 @@ export default async function Dashboard({
       </section>
 
       {/* ============ TABLE DIRECTORY ============ */}
-      <section style={{ marginTop: 56 }}>
+      {canReadDatabase && <section style={{ marginTop: 56 }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "space-between", alignItems: "flex-end", marginBottom: 22 }}>
           <div>
             <p style={{ margin: 0, fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: T.muted, fontWeight: 600, fontFamily: MONO }}>Shared database</p>
@@ -982,7 +982,7 @@ export default async function Dashboard({
             );
           })}
         </div>
-      </section>
+      </section>}
 
       {/* ============ FOOTER ============ */}
       <footer style={{ marginTop: 64, paddingTop: 24, borderTop: `1px solid ${T.line}`, display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center", fontFamily: MONO, fontSize: 11.5, color: T.faint, letterSpacing: "0.04em" }}>

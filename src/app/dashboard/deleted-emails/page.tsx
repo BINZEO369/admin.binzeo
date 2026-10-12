@@ -1,11 +1,11 @@
-import { requireAdmin } from "@/lib/admin";
+import { hasAdminPermission, requireAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type DeletedEmail = { id: string; original_user_id: string; email: string; binzeo_user_id: string | null; display_name: string | null; deleted_at: string; deleted_by: string | null; deletion_reason: string | null };
 
 export default async function DeletedEmailsPage() {
   const ctx = await requireAdmin();
-  if (!ctx.access.roles.includes("super_admin") && !ctx.access.permissions.includes("audit.read")) return <div className="content"><p className="error">You do not have permission to view deleted email archives.</p></div>;
+  if (!hasAdminPermission(ctx.access, "auth.read")) return <div className="content"><p className="error">You do not have permission to view deleted email archives.</p></div>;
   const admin = createAdminClient();
   const { data: rawData, error } = await admin.from("deleted_user_emails").select("id,original_user_id,email,binzeo_user_id,display_name,deleted_at,deleted_by,deletion_reason").order("deleted_at", { ascending: false }).limit(500);
   const data = (rawData ?? []) as unknown as DeletedEmail[];
