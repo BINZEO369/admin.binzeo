@@ -1,27 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DataTable from "@/components/DataTable";
-import { requirePrivacyAnalyticsAdmin } from "@/lib/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getAdminDataClient, requirePrivacyAnalyticsAdmin } from "@/lib/admin";
+import { getPrivacyAnalyticsColumns } from "@/lib/privacy-analytics-columns";
 import { getPrivacyAnalyticsTable } from "@/lib/privacy-analytics-tables";
 
-const AUTH_APP_URL = (process.env.AUTH_APP_URL ?? "https://auth-binzeo.vercel.app").replace(/\/+$/, "");
 const PAGE_SIZE = 50;
-
-type ApiData = {
-  table?: string;
-  columns?: string[];
-  rows?: Record<string, unknown>[];
-  total?: number | null;
-  count_accuracy?: string;
-  has_more?: boolean;
-};
-
-type ApiEnvelope = {
-  success?: boolean;
-  data?: ApiData;
-  error?: { message?: string };
-};
 
 type SearchParams = { page?: string };
 
@@ -32,7 +16,7 @@ export default async function PrivacyAnalyticsTablePage({
   params: Promise<{ table: string }>;
   searchParams: Promise<SearchParams>;
 }) {
-  await requirePrivacyAnalyticsAdmin();
+  const context = await requirePrivacyAnalyticsAdmin();
   const { table: tableName } = await params;
   const definition = getPrivacyAnalyticsTable(tableName);
   if (!definition) notFound();
@@ -44,38 +28,28 @@ export default async function PrivacyAnalyticsTablePage({
     : 1;
   const offset = (page - 1) * PAGE_SIZE;
 
-  let columns: string[] = [];
+  let columns = getPrivacyAnalyticsColumns(tableName);
   let rows: Record<string, unknown>[] = [];
   let total: number | null = null;
   let hasMore = false;
   let errorMessage: string | null = null;
 
   try {
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      errorMessage = "Your admin session could not be verified. Sign in again and retry.";
+    const db = await getAdminDataClient(context.access);
+    const result = await db
+      .from(tableName)
+      .select("*", { count: "exact" })
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (result.error) {
+      errorMessage = result.error.message;
     } else {
-      const url = new URL(`${AUTH_APP_URL}/api/admin/tracking/${encodeURIComponent(tableName)}`);
-      url.searchParams.set("limit", String(PAGE_SIZE));
-      url.searchParams.set("offset", String(offset));
-      url.searchParams.set("sort_order", "desc");
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        cache: "no-store",
-      });
-      const body = await response.json().catch(() => null) as ApiEnvelope | null;
-      if (!response.ok || !body?.success || !body.data) {
-        errorMessage = body?.error?.message ?? "This table could not be loaded. Check the Analytics role and retry.";
-      } else {
-        columns = Array.isArray(body.data.columns) ? body.data.columns.filter((column): column is string => typeof column === "string") : [];
-        rows = Array.isArray(body.data.rows) ? body.data.rows : [];
-        total = typeof body.data.total === "number" ? body.data.total : null;
-        hasMore = body.data.has_more === true;
-      }
+      rows = (result.data ?? []) as Record<string, unknown>[];
+      total = typeof result.count === "number" ? result.count : null;
+      hasMore = total === null ? rows.length === PAGE_SIZE : offset + rows.length < total;
+      if (columns.length === 0 && rows.length > 0) columns = Object.keys(rows[0]);
     }
   } catch {
-    errorMessage = "The tracking-data service is unavailable right now. Please retry shortly.";
+    errorMessage = "This analytics table could not be loaded. Check the shared database permissions and retry.";
   }
 
   const pageCount = total === null ? undefined : Math.max(1, Math.ceil(total / PAGE_SIZE));
