@@ -57,23 +57,30 @@ export default async function PrivacyAnalyticsTablePage({
 
   return (
     <div className="content">
-      <p><Link className="muted" href="/dashboard/privacy-analytics">← All privacy &amp; analytics tables</Link></p>
-      <div className="section-head">
-        <div>
-          <p className="eyebrow">Privacy &amp; analytics · {definition.name}</p>
+      <div className="privacy-breadcrumb"><Link className="muted" href="/dashboard/privacy-analytics">← Privacy &amp; analytics</Link><span>/</span><span>{definition.title}</span></div>
+      <section className="privacy-table-hero">
+        <div className="privacy-table-icon" aria-hidden="true">{definition.title.slice(0, 1)}</div>
+        <div className="privacy-table-heading">
+          <p className="eyebrow">Restricted table · shared Supabase</p>
           <h2>{definition.title}</h2>
           <p className="muted">{definition.description}</p>
+          <p className="privacy-table-code">public.{definition.name}</p>
         </div>
-        <span className="badge warn">Read only · {total === null ? "count unavailable" : `about ${total.toLocaleString()} records`}</span>
-      </div>
+        <div className="privacy-table-metrics">
+          <span className="badge warn">Read only</span>
+          <div><strong>{total === null ? "—" : total.toLocaleString()}</strong><small>records</small></div>
+          <div><strong>{columns.length}</strong><small>columns</small></div>
+        </div>
+      </section>
 
-      <p className="protected-note" style={{ marginBottom: 18 }}>
-        This view contains restricted privacy/analytics records. Location, when present, is IP-derived and approximate. Only rows currently stored in this table are shown.
-      </p>
+      <div className="protected-note privacy-note privacy-note-compact">
+        <span className="privacy-note-icon" aria-hidden="true">!</span>
+        <span><strong>Protected view</strong> Sensitive values remain governed by Supabase RLS. Location fields are approximate or consent-scoped where applicable.</span>
+      </div>
       {errorMessage ? (
-        <p className="error" role="alert">{errorMessage}</p>
+        <p className="error privacy-error" role="alert">{errorMessage}</p>
       ) : columns.length === 0 ? (
-        <p className="error" role="alert">The table schema could not be loaded. Please retry or contact a Super Admin.</p>
+        <p className="error privacy-error" role="alert">The table schema could not be loaded. Please retry or contact a Super Admin.</p>
       ) : (
         <>
           <DataTable
