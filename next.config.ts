@@ -1,10 +1,12 @@
 import type { NextConfig } from "next";
 
 const centralEnabled = process.env.CENTRAL_API_ENABLED === "true";
+const centralSsoEnabled = process.env.CENTRAL_SSO_ENABLED === "true";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   env: {
     NEXT_PUBLIC_CENTRAL_API_ENABLED: centralEnabled ? "true" : "false",
+    NEXT_PUBLIC_CENTRAL_SSO_ENABLED: centralSsoEnabled ? "true" : "false",
     NEXT_PUBLIC_AUTH_APP_URL: process.env.NEXT_PUBLIC_AUTH_APP_URL ?? process.env.AUTH_APP_URL ?? "https://auth-binzeo.vercel.app",
   },
   async rewrites() {

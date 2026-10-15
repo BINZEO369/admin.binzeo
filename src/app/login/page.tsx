@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
 
-const CENTRAL_AUTH_ENABLED = process.env.NEXT_PUBLIC_CENTRAL_API_ENABLED === "true";
+const CENTRAL_SSO_ENABLED = process.env.NEXT_PUBLIC_CENTRAL_SSO_ENABLED === "true";
 
 function base64Url(bytes: Uint8Array) {
   let binary = "";
@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!CENTRAL_AUTH_ENABLED || started.current) return;
+    if (!CENTRAL_SSO_ENABLED || started.current) return;
     started.current = true;
     void (async () => {
       try {
@@ -58,7 +58,7 @@ export default function LoginPage() {
     window.location.assign("/dashboard");
   }
 
-  if (CENTRAL_AUTH_ENABLED) {
+  if (CENTRAL_SSO_ENABLED) {
     return <main className="login"><section className="login-card"><div className="brand" style={{ padding: 0, marginBottom: 30 }}><span className="brand-mark">B</span>BINZEO Admin</div><p className="eyebrow">Central identity</p><h1>Secure sign-in</h1><p className="muted">Redirecting to BINZEO Identity…</p>{error && <p className="error" role="alert">{error}</p>}</section></main>;
   }
 
