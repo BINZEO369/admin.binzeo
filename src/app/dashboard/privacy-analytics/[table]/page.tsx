@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import DataTable from "@/components/DataTable";
 import { getAdminDataClient, requirePrivacyAnalyticsAdmin } from "@/lib/admin";
+import { centralApiGet } from "@/lib/central-api";
 import { getPrivacyAnalyticsColumns } from "@/lib/privacy-analytics-columns";
 import { getPrivacyAnalyticsTable } from "@/lib/privacy-analytics-tables";
 
@@ -35,18 +36,27 @@ export default async function PrivacyAnalyticsTablePage({
   let errorMessage: string | null = null;
 
   try {
-    const db = await getAdminDataClient(context.access);
-    const result = await db
-      .from(tableName)
-      .select("*", { count: "exact" })
-      .range(offset, offset + PAGE_SIZE - 1);
-    if (result.error) {
-      errorMessage = result.error.message;
+    if (process.env.CENTRAL_API_ENABLED === "true") {
+      const result = await centralApiGet<{ columns: string[]; rows: Record<string, unknown>[]; total: number | null; has_more: boolean }>(`/v1/admin/privacy-analytics/${encodeURIComponent(tableName)}?page=${page}`);
+      if (!result.ok) {
+        errorMessage = result.error;
+      } else {
+        columns = result.data.columns;
+        rows = result.data.rows;
+        total = result.data.total;
+        hasMore = result.data.has_more;
+      }
     } else {
-      rows = (result.data ?? []) as Record<string, unknown>[];
-      total = typeof result.count === "number" ? result.count : null;
-      hasMore = total === null ? rows.length === PAGE_SIZE : offset + rows.length < total;
-      if (columns.length === 0 && rows.length > 0) columns = Object.keys(rows[0]);
+      const db = await getAdminDataClient(context.access);
+      const result = await db.from(tableName).select("*", { count: "exact" }).range(offset, offset + PAGE_SIZE - 1);
+      if (result.error) {
+        errorMessage = result.error.message;
+      } else {
+        rows = (result.data ?? []) as Record<string, unknown>[];
+        total = typeof result.count === "number" ? result.count : null;
+        hasMore = total === null ? rows.length === PAGE_SIZE : offset + rows.length < total;
+        if (columns.length === 0 && rows.length > 0) columns = Object.keys(rows[0]);
+      }
     }
   } catch {
     errorMessage = "This analytics table could not be loaded. Check the shared database permissions and retry.";

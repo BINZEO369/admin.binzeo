@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { centralApiGet } from "@/lib/central-api";
 
 export type AdminContext = {
   user: { id: string; email?: string };
@@ -8,7 +9,19 @@ export type AdminContext = {
   access: { roles: string[]; permissions: string[]; is_active: boolean };
 };
 
+type CentralAdminContext = {
+  user: { id: string; email?: string };
+  profile: Record<string, unknown> | null;
+  access: { roles: string[]; permissions: string[]; is_active: boolean };
+};
+
 export async function requireAdmin(): Promise<AdminContext> {
+  if (process.env.CENTRAL_API_ENABLED === "true") {
+    const result = await centralApiGet<CentralAdminContext>("/v1/admin/me");
+    if (!result.ok || !result.data.access?.is_active) redirect("/login?error=not_admin");
+    return result.data;
+  }
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -43,10 +56,7 @@ export async function getAdminApiContext() {
   };
 }
 
-/**
- * Use only after requireAdmin/getAdminApiContext succeeds. The service-role client
- * is returned only for an active super_admin and must never be sent to the browser.
- */
+/** Use only after an active admin and permission checks have succeeded. */
 export async function getAdminDataClient(access: { roles: string[] }) {
   if (access.roles.includes("super_admin")) return createAdminClient();
   return createClient();

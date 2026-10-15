@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { getAdminDataClient, requireAdminPermission } from "@/lib/admin";
+import { centralApiGet } from "@/lib/central-api";
 import UserDataSection from "@/components/UserDataSection";
 import AccountStatusActions from "@/components/AccountStatusActions";
 
@@ -529,19 +530,22 @@ function SectionHeader({ index, title, count, sensitive, purpose }: {
 export default async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
   const context = await requireAdminPermission("users.read");
   const { id } = await params;
-  const db = await getAdminDataClient(context.access);
-
-  const { data: profile, error } = await db.from("profiles").select("*").eq("id", id).maybeSingle();
-  if (error || !profile) notFound();
-
-  const results = await Promise.all(
-    datasets.map(([, table, columns]) =>
-      db.from(table).select(columns.join(", ")).eq("user_id", id).limit(500)
-    )
-  );
-  const rows = results.map((result) => (result.data ?? []) as unknown as Row[]);
+  let profile: Profile | null = null;
   const dataByTable = new Map<string, Row[]>();
-  datasets.forEach(([, table], i) => dataByTable.set(table, rows[i]));
+  if (process.env.CENTRAL_API_ENABLED === "true") {
+    const result = await centralApiGet<{ profile: Profile; tables: Record<string, Row[]> }>(`/v1/admin/users/${encodeURIComponent(id)}/overview`);
+    if (!result.ok || !result.data.profile) notFound();
+    profile = result.data.profile;
+    for (const [table, rows] of Object.entries(result.data.tables)) dataByTable.set(table, rows);
+  } else {
+    const db = await getAdminDataClient(context.access);
+    const { data, error } = await db.from("profiles").select("*").eq("id", id).maybeSingle();
+    if (error || !data) notFound();
+    profile = data as Profile;
+    const results = await Promise.all(datasets.map(([, table, columns]) => db.from(table).select(columns.join(", ")).eq("user_id", id).limit(500)));
+    const rows = results.map((result) => (result.data ?? []) as unknown as Row[]);
+    datasets.forEach(([, table], index) => dataByTable.set(table, rows[index]));
+  }
 
   const user = profile as Profile;
   const profileFields = Object.keys(user).filter((field) => field !== "profile_photo_url");
@@ -563,7 +567,7 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
   const sectorAccess = dataByTable.get("user_sector_access") ?? [];
   const welcomeEmails = dataByTable.get("welcome_email_deliveries") ?? [];
 
-  const totalLinked = rows.reduce((s, r) => s + r.length, 0);
+  const totalLinked = [...dataByTable.values()].reduce((sum, tableRows) => sum + tableRows.length, 0);
 
   /* -------- login analytics -------- */
   const loginSuccess = logins.filter((r) => String(r.login_status ?? "").toLowerCase().includes("success")).length;

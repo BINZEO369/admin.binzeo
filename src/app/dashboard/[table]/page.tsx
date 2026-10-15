@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAdminDataClient, requireAdminPermission } from "@/lib/admin";
+import { centralApiGet } from "@/lib/central-api";
 import { getTableDefinition } from "@/lib/data-tables";
 import DataTable from "@/components/DataTable";
 
@@ -25,15 +26,21 @@ export default async function DataTablePage({
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
-  const db = await getAdminDataClient(context.access);
-  const result = await db
-    .from(definition.table)
-    .select(definition.columns.join(", "), { count: "exact" })
-    .range(from, to);
-  const rows = (result.data ?? []) as unknown as Row[];
-  const totalCount = result.count ?? 0;
+  let rows: Row[] = [];
+  let totalCount = 0;
+  let errorMessage = "";
+  if (process.env.CENTRAL_API_ENABLED === "true") {
+    const result = await centralApiGet<{ rows: Row[]; total: number }>(`/v1/admin/data-tables/${encodeURIComponent(slug)}?page=${page}`);
+    if (result.ok) { rows = result.data.rows; totalCount = result.data.total; }
+    else errorMessage = result.error;
+  } else {
+    const db = await getAdminDataClient(context.access);
+    const result = await db.from(definition.table).select(definition.columns.join(", "), { count: "exact" }).range(from, to);
+    rows = (result.data ?? []) as unknown as Row[];
+    totalCount = result.count ?? 0;
+    errorMessage = result.error?.message ?? "";
+  }
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const errorMessage = result.error?.message ?? "";
 
   return (
     <div className="content">
