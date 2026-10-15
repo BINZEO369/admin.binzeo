@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getAdminDataClient, requireAdmin } from "@/lib/admin";
+import { centralApiGet } from "@/lib/central-api";
 import { DATA_TABLES } from "@/lib/data-tables";
 
 /* ================= TOKENS ================= */
@@ -494,7 +495,6 @@ export default async function Dashboard({
   searchParams?: Promise<{ range?: string }> | { range?: string };
 }) {
   const context = await requireAdmin();
-  const db = await getAdminDataClient(context.access);
 
   const sp = await Promise.resolve(searchParams ?? {});
   const canReadDatabase = context.access.roles.includes("super_admin") || context.access.permissions.includes("database.read");
@@ -509,25 +509,44 @@ export default async function Dashboard({
   const cutoffISO = cutoff.toISOString();
 
   const countTables = ["profiles", "user_login_history", "user_activity_logs", "admin_activity_logs"] as const;
+  let counts: number[] = [];
+  let loginRows: LogRow[] = [];
+  let userActRows: LogRow[] = [];
+  let adminActRows: LogRow[] = [];
+  let profileRows: { created_at: string }[] = [];
+  let dataLoadError = false;
+  if (process.env.CENTRAL_API_ENABLED === "true") {
+    const result = await centralApiGet<{ counts: number[]; login_rows: LogRow[]; user_activity_rows: LogRow[]; admin_activity_rows: LogRow[]; profile_rows: { created_at: string }[] }>("/v1/admin/dashboard/summary");
+    if (result.ok) {
+      counts = result.data.counts;
+      loginRows = result.data.login_rows;
+      userActRows = result.data.user_activity_rows;
+      adminActRows = result.data.admin_activity_rows;
+      profileRows = result.data.profile_rows;
+    } else {
+      counts = [0, 0, 0, 0];
+      dataLoadError = true;
+    }
+  } else {
+    const db = await getAdminDataClient(context.access);
+    const [countRes, loginRes, userActRes, adminActRes, profileRes] = await Promise.all([
+      Promise.all(countTables.map((t) => db.from(t).select("id", { count: "exact", head: true }))),
+      db.from("user_login_history").select("created_at, user_id").gte("created_at", cutoffISO),
+      db.from("user_activity_logs").select("created_at, user_id").gte("created_at", cutoffISO),
+      db.from("admin_activity_logs").select("created_at, user_id").gte("created_at", cutoffISO),
+      db.from("profiles").select("created_at").gte("created_at", cutoffISO),
+    ]);
+    counts = countRes.map((r) => r.count ?? 0);
+    loginRows = (loginRes.data ?? []) as LogRow[];
+    userActRows = (userActRes.data ?? []) as LogRow[];
+    adminActRows = (adminActRes.data ?? []) as LogRow[];
+    profileRows = (profileRes.data ?? []) as { created_at: string }[];
+  }
 
-  const [countRes, loginRes, userActRes, adminActRes, profileRes] = await Promise.all([
-    Promise.all(countTables.map((t) => db.from(t).select("id", { count: "exact", head: true }))),
-    db.from("user_login_history").select("created_at, user_id").gte("created_at", cutoffISO),
-    db.from("user_activity_logs").select("created_at, user_id").gte("created_at", cutoffISO),
-    db.from("admin_activity_logs").select("created_at, user_id").gte("created_at", cutoffISO),
-    db.from("profiles").select("created_at").gte("created_at", cutoffISO),
-  ]);
-
-  const counts = countRes.map((r) => r.count ?? 0);
   const countBySlug: Record<string, number> = {
     profiles: counts[0], user_login_history: counts[1],
     user_activity_logs: counts[2], admin_activity_logs: counts[3],
   };
-
-  const loginRows = (loginRes.data ?? []) as LogRow[];
-  const userActRows = (userActRes.data ?? []) as LogRow[];
-  const adminActRows = (adminActRes.data ?? []) as LogRow[];
-  const profileRows = (profileRes.data ?? []) as { created_at: string }[];
 
   /* -------- day keys for current range -------- */
   const dayKeys: string[] = [];
@@ -691,6 +710,7 @@ export default async function Dashboard({
   return (
     <div style={{ background: T.canvas, minHeight: "100%", padding: "40px clamp(20px, 4vw, 56px) 80px", color: T.ink, fontFamily: SANS }}>
       <style>{ANIM_CSS}</style>
+      {dataLoadError && <p role="alert" style={{ margin: "16px 0", color: "#9A3412" }}>Central analytics could not be loaded. Retry shortly; no direct database fallback was used.</p>}
 
       {/* ============ HERO ============ */}
       <header style={{ display: "flex", flexWrap: "wrap", gap: 24, justifyContent: "space-between", alignItems: "flex-end", paddingBottom: 32, borderBottom: `1px solid ${T.line}` }}>
