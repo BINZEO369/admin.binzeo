@@ -1,6 +1,10 @@
 # BINZEO Admin
 
-Secure administration console for the shared BINZEO Supabase project. This is a separate Next.js application intended for Vercel deployment.
+Secure administration console for BINZEO. This is a separate Next.js application intended for Vercel deployment.
+
+## Architecture
+
+`admin.binzeo` is a UI-only client. All authentication, authorization, database reads/writes, audit operations and admin APIs are owned by `api.binzeo` (the BINZEO Central API). This repository must not contain Supabase clients, Supabase keys, service-role keys or local API route handlers.
 
 ## Local setup
 
@@ -10,11 +14,11 @@ npm install
 npm run dev
 ```
 
-Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_SITE_URL` in Vercel. Do not add a service-role key to this app unless a future server-only workflow explicitly requires it.
+Required variables are `CENTRAL_API_BASE_URL`, `NEXT_PUBLIC_AUTH_APP_URL`, and `NEXT_PUBLIC_SITE_URL`. Do not add Supabase, OAuth, SMTP, ImageKit, cron or service-role secrets to this project. Those belong only in the Central API environment.
 
 ## Access model
 
-Admin access is determined by the authenticated Supabase user and the `public.admin_access` record. Database RLS remains the source of truth for user data permissions.
+Admin access is determined by the authenticated identity and the Central API's `public.admin_access` authorization record. Database RLS and server-side permission checks remain the source of truth.
 
 ## Routes
 
