@@ -1,9 +1,6 @@
 import Link from "next/link";
 import { requireAdminPermission } from "@/lib/admin";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { centralApiGet } from "@/lib/central-api";
-
-const PAGE_SIZE = 100;
 
 type SearchParams = { page?: string; q?: string };
 type AuthUserRow = {
@@ -25,45 +22,21 @@ export default async function AuthUsersPage({ searchParams }: { searchParams: Pr
   const requestedPage = Number.parseInt(params.page ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const query = (params.q ?? "").trim().toLowerCase().slice(0, 80);
-  const centralEnabled = process.env.CENTRAL_API_ENABLED === "true";
 
   let users: AuthUserRow[] = [];
   let hasNextPage = false;
   let loadedCount = 0;
   let loadError: string | null = null;
 
-  if (centralEnabled) {
-    const queryParams = new URLSearchParams({ page: String(page) });
-    if (query) queryParams.set("q", query);
-    const result = await centralApiGet<AuthUsersResponse>(`/v1/admin/auth-users?${queryParams.toString()}`);
-    if (result.ok) {
-      users = result.data.users;
-      hasNextPage = result.data.has_next_page;
-      loadedCount = users.length;
-    } else {
-      loadError = result.error;
-    }
+  const queryParams = new URLSearchParams({ page: String(page) });
+  if (query) queryParams.set("q", query);
+  const result = await centralApiGet<AuthUsersResponse>(`/v1/admin/auth-users?${queryParams.toString()}`);
+  if (result.ok) {
+    users = result.data.users;
+    hasNextPage = result.data.has_next_page;
+    loadedCount = users.length;
   } else {
-    const admin = createAdminClient();
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: PAGE_SIZE });
-    if (error) {
-      loadError = error.message;
-    } else {
-      const pageUsers = data?.users ?? [];
-      loadedCount = pageUsers.length;
-      users = pageUsers.map((user) => ({
-        id: user.id,
-        email: user.email ?? null,
-        phone: user.phone ?? null,
-        email_confirmed_at: user.email_confirmed_at ?? null,
-        phone_confirmed_at: user.phone_confirmed_at ?? null,
-        app_metadata: (user.app_metadata ?? {}) as Record<string, unknown>,
-        created_at: user.created_at ?? null,
-        last_sign_in_at: user.last_sign_in_at ?? null,
-        banned_until: user.banned_until ?? null,
-      })).filter((user) => !query || `${user.email ?? ""} ${user.phone ?? ""} ${user.id}`.toLowerCase().includes(query));
-      hasNextPage = pageUsers.length === PAGE_SIZE;
-    }
+    loadError = result.error;
   }
 
   return <div className="content">

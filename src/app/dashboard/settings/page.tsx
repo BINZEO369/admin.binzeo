@@ -1,4 +1,4 @@
-import { getAdminDataClient, requireAdmin } from "@/lib/admin";
+import { requireAdmin } from "@/lib/admin";
 import { centralApiGet } from "@/lib/central-api";
 import AdminAssignment from "@/components/AdminAssignment";
 import AdminProfileEditor from "@/components/AdminProfileEditor";
@@ -8,20 +8,9 @@ type Country = { country_code: string; country_name: string; phone_code: string 
 
 export default async function SettingsPage() {
   const context = await requireAdmin();
-  let sectors: Sector[] = [];
-  let countries: Country[] = [];
-  if (process.env.CENTRAL_API_ENABLED === "true") {
-    const result = await centralApiGet<{ sectors: Sector[]; countries: Country[] }>("/v1/admin/settings/references");
-    if (result.ok) ({ sectors, countries } = result.data);
-  } else {
-    const db = await getAdminDataClient(context.access);
-    const [{ data: sectorRows }, { data: countryRows }] = await Promise.all([
-      db.from("sectors").select("sector_code,sector_name,is_active,created_at").order("sector_name").limit(100),
-      db.from("countries").select("country_code,country_name,phone_code,is_active").order("country_name").limit(250),
-    ]);
-    sectors = (sectorRows ?? []) as Sector[];
-    countries = (countryRows ?? []) as Country[];
-  }
+  const references = await centralApiGet<{ sectors: Sector[]; countries: Country[] }>("/v1/admin/settings/references");
+  if (!references.ok) throw new Error(`Central API reference data failed: ${references.error}`);
+  const { sectors, countries } = references.data;
   const isSuperAdmin = context.access.roles.includes("super_admin");
   const displayName = typeof context.profile?.display_name === "string" ? context.profile.display_name : "";
   const username = typeof context.profile?.username === "string" ? context.profile.username : "";

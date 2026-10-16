@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getAdminDataClient, requireAdminPermission } from "@/lib/admin";
+import { requireAdminPermission } from "@/lib/admin";
 import { centralApiGet } from "@/lib/central-api";
 import { getTableDefinition } from "@/lib/data-tables";
 import DataTable from "@/components/DataTable";
@@ -17,7 +17,7 @@ export default async function DataTablePage({
   params: Promise<{ table: string }>;
   searchParams: Promise<SearchParams>;
 }) {
-  const context = await requireAdminPermission("database.read");
+  await requireAdminPermission("database.read");
   const { table: slug } = await params;
   const definition = getTableDefinition(slug);
   if (!definition) notFound();
@@ -29,17 +29,9 @@ export default async function DataTablePage({
   let rows: Row[] = [];
   let totalCount = 0;
   let errorMessage = "";
-  if (process.env.CENTRAL_API_ENABLED === "true") {
-    const result = await centralApiGet<{ rows: Row[]; total: number }>(`/v1/admin/data-tables/${encodeURIComponent(slug)}?page=${page}`);
-    if (result.ok) { rows = result.data.rows; totalCount = result.data.total; }
-    else errorMessage = result.error;
-  } else {
-    const db = await getAdminDataClient(context.access);
-    const result = await db.from(definition.table).select(definition.columns.join(", "), { count: "exact" }).range(from, to);
-    rows = (result.data ?? []) as unknown as Row[];
-    totalCount = result.count ?? 0;
-    errorMessage = result.error?.message ?? "";
-  }
+  const result = await centralApiGet<{ rows: Row[]; total: number }>(`/v1/admin/data-tables/${encodeURIComponent(slug)}?page=${page}`);
+  if (result.ok) { rows = result.data.rows; totalCount = result.data.total; }
+  else errorMessage = result.error;
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (

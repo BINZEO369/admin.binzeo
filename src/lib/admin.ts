@@ -1,6 +1,5 @@
+import "server-only";
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { centralApiGet } from "@/lib/central-api";
 
 export type AdminContext = {
@@ -9,57 +8,11 @@ export type AdminContext = {
   access: { roles: string[]; permissions: string[]; is_active: boolean };
 };
 
-type CentralAdminContext = {
-  user: { id: string; email?: string };
-  profile: Record<string, unknown> | null;
-  access: { roles: string[]; permissions: string[]; is_active: boolean };
-};
-
 export async function requireAdmin(): Promise<AdminContext> {
-  if (process.env.CENTRAL_API_ENABLED === "true") {
-    const result = await centralApiGet<CentralAdminContext>("/v1/admin/me");
-    if (!result.ok || !result.data.access?.is_active) redirect("/login?error=not_admin");
-    return result.data;
-  }
-
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  const { data: access } = await supabase.from("admin_access").select("roles, permissions, is_active").eq("user_id", user.id).maybeSingle();
-  if (!access?.is_active) redirect("/login?error=not_admin");
-  const { data: profile } = await supabase.from("profiles").select("id, binzeo_user_id, display_name, username, profile_photo_url, account_status").eq("id", user.id).maybeSingle();
-  return {
-    user: { id: user.id, email: user.email },
-    profile,
-    access: {
-      roles: Array.isArray(access.roles) ? access.roles : [],
-      permissions: Array.isArray(access.permissions) ? access.permissions : [],
-      is_active: access.is_active,
-    },
-  };
-}
-
-export async function getAdminApiContext() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { supabase, user: null, access: null };
-  const { data: access } = await supabase.from("admin_access").select("roles, permissions, is_active").eq("user_id", user.id).maybeSingle();
-  if (!access?.is_active) return { supabase, user: null, access: null };
-  return {
-    supabase,
-    user,
-    access: {
-      roles: Array.isArray(access.roles) ? access.roles : [],
-      permissions: Array.isArray(access.permissions) ? access.permissions : [],
-      is_active: access.is_active,
-    },
-  };
-}
-
-/** Use only after an active admin and permission checks have succeeded. */
-export async function getAdminDataClient(access: { roles: string[] }) {
-  if (access.roles.includes("super_admin")) return createAdminClient();
-  return createClient();
+  const result = await centralApiGet<AdminContext>("/v1/admin/me");
+  if (!result.ok) throw new Error(`Central admin verification failed: ${result.error}`);
+  if (!result.data.access?.is_active) redirect("/login?error=not_admin");
+  return result.data;
 }
 
 export function isSuperAdmin(access: { roles?: unknown } | null | undefined): boolean {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { getAdminDataClient, requireAdmin } from "@/lib/admin";
+import { requireAdmin } from "@/lib/admin";
 import { centralApiGet } from "@/lib/central-api";
 import { DATA_TABLES } from "@/lib/data-tables";
 
@@ -501,46 +501,22 @@ export default async function Dashboard({
   const rangeKey: RangeKey = (["7d", "30d", "90d"].includes(sp.range ?? "") ? sp.range : "7d") as RangeKey;
   const cfg = RANGE_CFG[rangeKey];
 
-  // Fetch wide window (max 90d) — every range uses the same real dataset
-  const maxDays = 90;
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - (maxDays - 1));
-  cutoff.setHours(0, 0, 0, 0);
-  const cutoffISO = cutoff.toISOString();
-
-  const countTables = ["profiles", "user_login_history", "user_activity_logs", "admin_activity_logs"] as const;
   let counts: number[] = [];
   let loginRows: LogRow[] = [];
   let userActRows: LogRow[] = [];
   let adminActRows: LogRow[] = [];
   let profileRows: { created_at: string }[] = [];
   let dataLoadError = false;
-  if (process.env.CENTRAL_API_ENABLED === "true") {
-    const result = await centralApiGet<{ counts: number[]; login_rows: LogRow[]; user_activity_rows: LogRow[]; admin_activity_rows: LogRow[]; profile_rows: { created_at: string }[] }>("/v1/admin/dashboard/summary");
-    if (result.ok) {
-      counts = result.data.counts;
-      loginRows = result.data.login_rows;
-      userActRows = result.data.user_activity_rows;
-      adminActRows = result.data.admin_activity_rows;
-      profileRows = result.data.profile_rows;
-    } else {
-      counts = [0, 0, 0, 0];
-      dataLoadError = true;
-    }
+  const result = await centralApiGet<{ counts: number[]; login_rows: LogRow[]; user_activity_rows: LogRow[]; admin_activity_rows: LogRow[]; profile_rows: { created_at: string }[] }>("/v1/admin/dashboard/summary");
+  if (result.ok) {
+    counts = result.data.counts;
+    loginRows = result.data.login_rows;
+    userActRows = result.data.user_activity_rows;
+    adminActRows = result.data.admin_activity_rows;
+    profileRows = result.data.profile_rows;
   } else {
-    const db = await getAdminDataClient(context.access);
-    const [countRes, loginRes, userActRes, adminActRes, profileRes] = await Promise.all([
-      Promise.all(countTables.map((t) => db.from(t).select("id", { count: "exact", head: true }))),
-      db.from("user_login_history").select("created_at, user_id").gte("created_at", cutoffISO),
-      db.from("user_activity_logs").select("created_at, user_id").gte("created_at", cutoffISO),
-      db.from("admin_activity_logs").select("created_at, user_id").gte("created_at", cutoffISO),
-      db.from("profiles").select("created_at").gte("created_at", cutoffISO),
-    ]);
-    counts = countRes.map((r) => r.count ?? 0);
-    loginRows = (loginRes.data ?? []) as LogRow[];
-    userActRows = (userActRes.data ?? []) as LogRow[];
-    adminActRows = (adminActRes.data ?? []) as LogRow[];
-    profileRows = (profileRes.data ?? []) as { created_at: string }[];
+    counts = [0, 0, 0, 0];
+    dataLoadError = true;
   }
 
   const countBySlug: Record<string, number> = {
