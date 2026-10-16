@@ -39,3 +39,5 @@ Admin access is determined by the authenticated identity and the Central API's `
 - `GET /api/admin/users/:id`
 - `GET /api/admin/audit`
 - `POST /api/auth/logout`
+
+Database migrations and server-side database scripts are owned by `api.binzeo`; this frontend repository contains only UI code, middleware and the Central API client.
