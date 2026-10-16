@@ -13,6 +13,7 @@ const coreLinks = [
   ["Email templates", "/dashboard/templates"],
   ["User birthdays", "/dashboard/birthdays"],
   ["Login history", "/dashboard/security"],
+  ["Connected applications", "/dashboard/connected-applications"],
   ["Admin audit", "/dashboard/audit"],
 ];
 
@@ -24,7 +25,7 @@ export default async function AdminShell({ children }: { children: React.ReactNo
     if (label === "Deleted emails") return hasAdminPermission(ctx.access, "auth.read");
     if (label === "Admin audit") return hasAdminPermission(ctx.access, "audit.read");
     if (label === "Marketing emails" || label === "Occasion email sender" || label === "Email templates" || label === "User birthdays") return hasAdminPermission(ctx.access, "marketing.send");
-    if (label === "Login history") return hasAdminPermission(ctx.access, "auth.read");
+    if (label === "Login history" || label === "Connected applications") return hasAdminPermission(ctx.access, "auth.read");
     return true;
   });
   const links = [
