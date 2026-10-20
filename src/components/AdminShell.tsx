@@ -14,6 +14,7 @@ const coreLinks = [
   ["User birthdays", "/dashboard/birthdays"],
   ["Login history", "/dashboard/security"],
   ["Connected applications", "/dashboard/connected-applications"],
+  ["Connected websites", "/dashboard/connected-apps"],
   ["Admin audit", "/dashboard/audit"],
 ];
 
