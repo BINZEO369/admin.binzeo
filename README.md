@@ -30,6 +30,7 @@ Admin access is determined by the authenticated identity and the Central API's `
 - `/dashboard/:table` — one dedicated page per database table
 - `/dashboard/security` — login history
 - `/dashboard/audit` — privileged action audit log
+- `/dashboard/payments` — multi-site Central payment history (`payments.read` permission)
 - `/dashboard/settings` — sectors and countries reference data
 
 ## Admin API
@@ -38,6 +39,7 @@ Admin access is determined by the authenticated identity and the Central API's `
 - `GET /api/admin/users?q=`
 - `GET /api/admin/users/:id`
 - `GET /api/admin/audit`
+- `GET /v1/admin/payments` (Central API) — paginated payment records with site, Central Auth user, order, amount and webhook-confirmed payment time
 - `POST /api/auth/logout`
 
 Database migrations and server-side database scripts are owned by `api.binzeo`; this frontend repository contains only UI code, middleware and the Central API client.
