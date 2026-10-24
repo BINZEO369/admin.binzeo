@@ -5,6 +5,7 @@ import LogoutButton from "@/components/LogoutButton";
 
 const coreLinks = [
   ["Overview", "/dashboard"],
+  ["Central payments", "/dashboard/payments"],
   ["Active users", "/dashboard/users"],
   ["Suspended users", "/dashboard/suspended"],
   ["Deleted emails", "/dashboard/deleted-emails"],
@@ -22,6 +23,7 @@ export default async function AdminShell({ children }: { children: React.ReactNo
   const ctx = await requireAdmin();
   const displayName = typeof ctx.profile?.display_name === "string" ? ctx.profile.display_name : ctx.user.email;
   const visibleCoreLinks = coreLinks.filter(([label]) => {
+    if (label === "Central payments") return hasAdminPermission(ctx.access, "payments.read");
     if (label === "Active users" || label === "Suspended users") return hasAdminPermission(ctx.access, "users.read");
     if (label === "Deleted emails") return hasAdminPermission(ctx.access, "auth.read");
     if (label === "Admin audit") return hasAdminPermission(ctx.access, "audit.read");
